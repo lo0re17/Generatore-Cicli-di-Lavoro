@@ -1,0 +1,16 @@
+{
+  "operatori": [
+    {
+      "sigla": "NDV",
+      "nome": "Nicola Del Vecchio",
+      "reparto": "RT",
+      "firma": "firme/NDV.png"
+    },
+    {
+      "sigla": "MRO",
+      "nome": "Mario Rossi",
+      "reparto": "QUALITY",
+      "firma": ""
+    }
+  ]
+}

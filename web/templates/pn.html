@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% set attiva = 'pn' %}
+{% block titolo %}Anagrafica PN — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Anagrafica PN</h2>
+
+<div class="card">
+  <form method="get" action="{{ url_for('pn_elenco') }}">
+    <div class="riga" style="align-items:flex-end">
+      <div>
+        <label>Filtra per cliente</label>
+        <select name="cliente" onchange="this.form.submit()">
+          <option value="">Tutti</option>
+          {% for c in clienti %}
+            <option value="{{ c.id }}" {% if filtro_cliente == c.id|string %}selected{% endif %}>
+              {{ c.nome }} ({{ c.n_pn }})
+            </option>
+          {% endfor %}
+          <option value="non_assegnati" {% if filtro_cliente == 'non_assegnati' %}selected{% endif %}>
+            Non assegnato ({{ n_non_assegnati }})
+          </option>
+        </select>
+      </div>
+    </div>
+  </form>
+</div>
+
+{% if puo_redigere %}
+<div class="card">
+  <details>
+    <summary>Aggiungi PN manualmente</summary>
+    <form method="post" action="{{ url_for('pn_salva') }}" style="margin-top:8px">
+      <div class="riga">
+        <div><label>PN (part number) *</label>
+          <input name="pn" required></div>
+        <div><label>Revisione</label>
+          <input name="revisione"></div>
+        <div><label>Cliente</label>
+          <select name="cliente_id">
+            <option value="">— nessuno —</option>
+            {% for c in clienti %}
+              <option value="{{ c.id }}">{{ c.nome }}</option>
+            {% endfor %}
+          </select></div>
+      </div>
+      <div class="riga">
+        <div><label>Descrizione</label>
+          <input name="descrizione"></div>
+        <div><label>Codice disegno</label>
+          <input name="codice_disegno"></div>
+        <div><label>Unita di misura</label>
+          <input name="unita_misura"></div>
+      </div>
+      <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+        <button type="submit">Salva PN</button>
+      </div>
+    </form>
+  </details>
+</div>
+{% endif %}
+
+{% if righe %}
+{% if puo_redigere %}
+<form method="post" action="{{ url_for('pn_assegna') }}">
+  <input type="hidden" name="filtro" value="{{ filtro_cliente }}">
+{% endif %}
+
+<div class="card" style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        {% if puo_redigere %}<th style="width:1%"><input type="checkbox" id="sel_tutti"></th>{% endif %}
+        <th>PN</th>
+        <th>Rev.</th>
+        <th>Descrizione</th>
+        <th>Cliente</th>
+        <th>Template</th>
+        {% if puo_redigere %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in righe %}
+      <tr>
+        {% if puo_redigere %}
+        <td><input type="checkbox" name="pn_scelti" value="{{ r.pn }}"></td>
+        {% endif %}
+        <td>
+          {% if puo_redigere %}
+          <details>
+            <summary>{{ r.pn }}</summary>
+            <form method="post" action="{{ url_for('pn_salva') }}" style="margin-top:6px">
+              <input type="hidden" name="pn" value="{{ r.pn }}">
+              <div class="riga">
+                <div><label>Revisione</label>
+                  <input name="revisione" value="{{ r.revisione }}"></div>
+                <div><label>Descrizione</label>
+                  <input name="descrizione" value="{{ r.descrizione }}"></div>
+                <div><label>Cliente</label>
+                  <select name="cliente_id">
+                    <option value="">— nessuno —</option>
+                    {% for c in clienti %}
+                      <option value="{{ c.id }}" {% if r.cliente_id == c.id %}selected{% endif %}>
+                        {{ c.nome }}</option>
+                    {% endfor %}
+                  </select></div>
+              </div>
+              <div class="riga">
+                <div><label>Codice disegno</label>
+                  <input name="codice_disegno" value="{{ r.codice_disegno }}"></div>
+                <div><label>Unita di misura</label>
+                  <input name="unita_misura" value="{{ r.unita_misura }}"></div>
+              </div>
+              <div class="barra-azioni" style="margin-top:6px; margin-bottom:0">
+                <button type="submit" class="piccolo">Salva</button>
+              </div>
+            </form>
+          </details>
+          {% else %}
+            {{ r.pn }}
+          {% endif %}
+        </td>
+        <td>{{ r.revisione }}</td>
+        <td>{{ r.descrizione }}</td>
+        <td>{{ r.cliente_nome or '—' }}</td>
+        <td>
+          {% if r.pn in con_template %}
+            <span class="badge ok">si</span>
+          {% else %}
+            <span class="badge neutro">no</span>
+          {% endif %}
+        </td>
+        {% if puo_redigere %}
+        <td style="width:1%">
+          <form method="post" action="{{ url_for('pn_elimina', pn=r.pn) }}"
+                onsubmit="return confirm('Rimuovere {{ r.pn }} dall\\'anagrafica?')">
+            <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if puo_redigere %}
+  <div class="card">
+    <div class="riga" style="align-items:flex-end">
+      <div>
+        <label>Assegna i PN selezionati a:</label>
+        <select name="cliente_id">
+          <option value="">— rimuovi assegnazione —</option>
+          {% for c in clienti %}
+            <option value="{{ c.id }}">{{ c.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="flex:0">
+        <button type="submit">Assegna</button>
+      </div>
+    </div>
+  </div>
+</form>
+{% endif %}
+
+{% else %}
+<div class="card"><p class="vuoto">Nessun PN in anagrafica per questo filtro.</p></div>
+{% endif %}
+
+{% endblock %}
+
+{% block script %}
+<script>
+  var selTutti = document.getElementById('sel_tutti');
+  if (selTutti) {
+    selTutti.addEventListener('change', function() {
+      document.querySelectorAll('input[name="pn_scelti"]')
+        .forEach(function(cb) { cb.checked = selTutti.checked; });
+    });
+  }
+</script>
+{% endblock %}

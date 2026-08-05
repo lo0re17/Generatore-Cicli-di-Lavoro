@@ -1,0 +1,142 @@
+{
+  "pn": "55631490",
+  "descrizione": "Honeycomb N°3 Aletta Mobile",
+  "template": "template_riq.xlsx",
+  "pattern_nome_file": "{ORDINE_INTERNO}_RIQ_OR_{PN}.xlsx",
+  "campi": [
+    {
+      "token": "{{RIQ}}",
+      "etichetta": "RIQ:",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{PROTOCOLLO}}",
+      "etichetta": "Protocollo Nr:",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{CLIENTE}}",
+      "etichetta": "Cliente:",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{COMMESSA}}",
+      "etichetta": "Commessa:",
+      "tipo": "testo",
+      "obbligatorio": true,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{ORDINE_ACQUISTO}}",
+      "etichetta": "Ordine acquisto cliente",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{DESCRIZIONE}}",
+      "etichetta": "Descrizione:",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{ORDINE_INTERNO}}",
+      "etichetta": "Ordine di lavoro n",
+      "tipo": "ordine_interno",
+      "obbligatorio": true,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": "Deve coincidere con l'Ordine Interno dell'ODL."
+    },
+    {
+      "token": "{{LOTTO}}",
+      "etichetta": "Lotto n",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{PN}}",
+      "etichetta": "PN",
+      "tipo": "testo",
+      "obbligatorio": true,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{DWG}}",
+      "etichetta": "DWG:",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{QUANTITA_PRODOTTE}}",
+      "etichetta": "Quantit",
+      "tipo": "intero",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{PERC_CAMPIONAMENTO}}",
+      "etichetta": "% campionamento",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    }
+  ],
+  "riga_inizio_misure": 14,
+  "riga_fine_misure": 28,
+  "colonne_misure": {
+    "posizione": "A",
+    "caratteristica": "B",
+    "modalita_verifica": "F",
+    "strumento": "G",
+    "accettato": "H",
+    "scartato": "I",
+    "risultato": "J"
+  },
+  "blocco_esito": {
+    "riga": 31,
+    "colonna_data": "A",
+    "colonna_stato": "D",
+    "cella_firma_cq": "H31"
+  },
+  "blocco_non_conformita": {
+    "riga": 33,
+    "cella_rnc": "C33",
+    "cella_concessione": "I33"
+  },
+  "blocco_redatto_approvato": {
+    "cella_redatto": "A35",
+    "cella_approvato": ""
+  }
+}

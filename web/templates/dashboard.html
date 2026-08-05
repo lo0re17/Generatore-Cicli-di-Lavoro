@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% set attiva = 'genera' %}
+{% block contenuto %}
+
+<div class="card">
+  <form method="get" action="{{ url_for('dashboard') }}">
+    <div class="riga">
+      <div>
+        <label>Cliente</label>
+        <select name="cliente" onchange="this.form.submit()">
+          <option value="">Tutti i clienti</option>
+          {% for c in clienti %}
+            <option value="{{ c.id }}" {% if filtro_cliente == c.id|string %}selected{% endif %}>
+              {{ c.nome }} ({{ c.n_pn }})
+            </option>
+          {% endfor %}
+          <option value="non_assegnati" {% if filtro_cliente == 'non_assegnati' %}selected{% endif %}>
+            Non assegnato ({{ n_non_assegnati }})
+          </option>
+        </select>
+      </div>
+      <div>
+        <label>PN (part number)</label>
+        <select name="pn" onchange="this.form.submit()">
+          {% for pn in pn_lista %}
+            <option value="{{ pn }}" {% if pn == pn_scelto %}selected{% endif %}>{{ pn }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </form>
+  {% if config %}
+    <p class="aiuto">{{ config.descrizione }}
+      {%- if anagrafica_pn and anagrafica_pn.cliente_nome %} · cliente: {{ anagrafica_pn.cliente_nome }}{% endif %}</p>
+  {% elif not pn_lista %}
+    <p class="aiuto">Nessun PN con template disponibile per questo filtro.</p>
+  {% endif %}
+</div>
+
+{% if config %}
+
+{# --- Riepilogo dati fissi (dal template) --- #}
+{% set campi_fissi = config.campi | selectattr('fisso') | list %}
+{% if campi_fissi %}
+<div class="card">
+  <h3 style="margin-top:0">Dati fissi dal template</h3>
+  <p class="aiuto" style="margin-bottom:10px">Valori precompilati dal template del PN. Per modificarli, aggiorna il template.</p>
+  <table style="width:auto">
+    <tbody>
+      {% for campo in campi_fissi %}
+      <tr>
+        <td style="font-weight:600; padding-right:16px; white-space:nowrap">{{ campo.etichetta }}</td>
+        <td>{{ campo.default or '—' }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td style="font-weight:600; padding-right:16px; white-space:nowrap">PN</td>
+        <td>{{ config.pn }}</td>
+      </tr>
+      <tr>
+        <td style="font-weight:600; padding-right:16px; white-space:nowrap">Descrizione</td>
+        <td>{{ config.descrizione }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{# --- Form campi variabili --- #}
+<form method="post" id="form-genera">
+  <input type="hidden" name="pn" value="{{ pn_scelto }}">
+
+  <div class="card">
+    <h3 style="margin-top:0">Dati variabili</h3>
+    <p class="aiuto" style="margin-bottom:10px">
+      Spunta <strong>N/A</strong> per escludere un campo e scrivere al suo posto
+      un carattere a scelta (es. <code>-</code> o <code>N/A</code>).
+    </p>
+    {% set gruppo = namespace(nome=None) %}
+    {% for campo in config.campi %}
+      {% if not campo.fisso %}
+        {% if campo.gruppo and campo.gruppo != gruppo.nome %}
+          {% set gruppo.nome = campo.gruppo %}
+          <h3>{{ campo.gruppo }}</h3>
+        {% endif %}
+        {% set val_corrente = valori_salvati.get(campo.token, campo.default) if valori_salvati else campo.default %}
+        {% set na_attivo = valori_salvati.get('na__' ~ campo.token) if valori_salvati else '' %}
+        {% set na_testo_val = valori_salvati.get('na_testo__' ~ campo.token, '-') if valori_salvati else '-' %}
+        <label>{{ campo.etichetta }}{% if campo.obbligatorio %} *{% endif %}</label>
+        <div class="riga stretta" style="gap:8px; align-items:center">
+          <input name="{{ campo.token }}" value="{{ val_corrente }}"
+                 data-campo="{{ campo.token }}" style="flex:1"
+                 {% if na_attivo %}disabled{% endif %}>
+          <input type="checkbox" name="na__{{ campo.token }}" id="na_{{ loop.index }}"
+                 onchange="toggleNA(this, '{{ campo.token }}')"
+                 {% if na_attivo %}checked{% endif %}>
+          <label for="na_{{ loop.index }}" style="margin:0; cursor:pointer">N/A</label>
+          <input name="na_testo__{{ campo.token }}" value="{{ na_testo_val }}" style="width:70px"
+                 data-na-testo="{{ campo.token }}" {% if not na_attivo %}hidden{% endif %}>
+        </div>
+        {% if campo.aiuto %}<div class="aiuto">{{ campo.aiuto }}</div>{% endif %}
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  {# --- Date e firme per fase (come il desktop) --- #}
+  {% if fasi %}
+  <div class="card">
+    <h3 style="margin-top:0">Date di esecuzione e firme</h3>
+    <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+      <input type="checkbox" name="compila_fasi" id="compila_fasi"
+             onchange="document.getElementById('sezione_fasi').hidden = !this.checked">
+      Compila date e firme nelle fasi (per digitalizzare un processo gia eseguito)
+    </label>
+    <div id="sezione_fasi" hidden style="margin-top:12px">
+      <div class="riga" style="gap:16px; margin-bottom:12px">
+        <div>
+          <label>Data esecuzione globale</label>
+          <input type="text" name="data_esecuzione" placeholder="gg/mm/aaaa" style="width:130px"
+                 value="{{ valori_salvati.get('data_esecuzione', '') if valori_salvati else '' }}">
+          <div class="aiuto">Usata per le fasi senza data specifica</div>
+        </div>
+        <div>
+          <label>Operatore predefinito</label>
+          <select name="operatore_globale" style="width:220px">
+            <option value="">— nessuno —</option>
+            {% for op in operatori %}
+              <option value="{{ op.sigla }}">{{ op.sigla }} — {{ op.nome }}</option>
+            {% endfor %}
+          </select>
+          <div class="aiuto">Usato per le fasi senza operatore specifico</div>
+        </div>
+      </div>
+      <table style="width:100%; font-size:0.9em">
+        <thead>
+          <tr>
+            <th style="width:30px"></th>
+            <th style="text-align:left">Fase</th>
+            <th style="text-align:left; width:200px">Operatore</th>
+            <th style="text-align:left; width:130px">Data (se diversa)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fase in fasi %}
+          <tr>
+            <td><input type="checkbox" name="fase_{{ loop.index0 }}" checked></td>
+            <td style="font-size:0.85em">
+              <strong>{{ fase.numero }}</strong>
+              {% if fase.reparto %}[{{ fase.reparto }}]{% endif %}
+              — {{ fase.descrizione[:55] }}{% if fase.descrizione|length > 55 %}…{% endif %}
+            </td>
+            <td>
+              <select name="fase_op_{{ loop.index0 }}" style="width:100%; font-size:0.9em">
+                <option value="">= predefinito</option>
+                {% for op in operatori %}
+                  <option value="{{ op.sigla }}">{{ op.sigla }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="text" name="fase_data_{{ loop.index0 }}" placeholder="gg/mm/aaaa"
+                     style="width:100%; font-size:0.9em">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h3 style="margin-top:0">Documenti e quantita</h3>
+    <div class="riga">
+      <div style="flex:0 0 130px">
+        <label>Numero di cicli</label>
+        <input type="number" name="quantita" value="{{ valori_salvati.get('quantita', '1') if valori_salvati else '1' }}" min="1">
+      </div>
+      <div style="flex:0 0 260px">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+          <input type="checkbox" name="ultimo_diverso" id="ultimo_diverso"
+                 onchange="document.getElementById('pezzi_ultimo').hidden = !this.checked">
+          Ultimo ciclo con n. pezzi diverso
+        </label>
+        <input type="number" name="pezzi_ultimo" id="pezzi_ultimo" min="1" value="1" hidden>
+      </div>
+    </div>
+
+    {% if config_riq %}
+    <div style="margin-top:14px; padding-top:12px; border-top:1px solid #eee">
+      <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+        <input type="checkbox" name="con_riq" id="con_riq"
+               onchange="document.getElementById('opzioni_riq').hidden = !this.checked">
+        Genera anche il RIQ associato (1:1 con ogni ODL)
+      </label>
+      <div id="opzioni_riq" hidden style="margin-top:8px; padding-left:22px">
+        <p class="aiuto">I dati comuni (commessa, PN, lotti, date) sono ereditati
+          dall'ODL. Compila qui solo i campi esclusivi del RIQ.</p>
+
+        <label>Numerazione del RIQ</label>
+        <select name="riq_progressivo" style="max-width:320px">
+          <option value="come_odl">Stesso numero dell'ODL (Ordine Interno)</option>
+          <option value="indipendente">Progressivo indipendente</option>
+        </select>
+
+        {# Campi esclusivi del RIQ (non presenti nell'ODL) #}
+        {% set token_odl = config.campi | map(attribute='token') | list %}
+        {% for campo in config_riq.campi %}
+          {% if campo.token not in token_odl and campo.token != '{{PN}}' and campo.token != '{{ORDINE_INTERNO}}' and campo.token != '{{DESCRIZIONE}}' %}
+            <div style="margin-top:8px">
+              <label>{{ campo.etichetta }}{% if campo.obbligatorio %} *{% endif %}</label>
+              <input name="riq_{{ campo.token }}" value="{{ campo.default }}" style="max-width:300px">
+              {% if campo.aiuto %}<div class="aiuto">{{ campo.aiuto }}</div>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        <div style="margin-top:12px">
+          <label>Data RIQ / Data esito</label>
+          <input type="text" name="riq_data_esito" placeholder="gg/mm/aaaa" style="width:130px">
+          <div class="aiuto">Se vuota, resta come nel template</div>
+        </div>
+
+        <div style="margin-top:8px">
+          <label>Varianza misure calibro</label>
+          <select name="riq_varianza" style="width:120px">
+            <option value="0.01">± 0,01 mm</option>
+            <option value="0.02">± 0,02 mm</option>
+            <option value="0.05" selected>± 0,05 mm</option>
+          </select>
+          <div class="aiuto">I valori misurati vengono generati automaticamente con variazione casuale entro questa tolleranza</div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+      <p class="aiuto" style="margin-top:12px">
+        Nessun template RIQ per questo PN: verra generato solo l'ODL.</p>
+    {% endif %}
+
+    {% if puo_compilare %}
+    <div class="barra-azioni" style="margin-top:16px; margin-bottom:0">
+      <button type="submit" formaction="{{ url_for('genera') }}">Genera e scarica</button>
+      <button type="submit" class="chiaro" formaction="{{ url_for('coda_aggiungi') }}">
+        Aggiungi alla coda</button>
+    </div>
+    {% else %}
+      <p class="aiuto" style="margin-top:14px">Il tuo ruolo non puo generare documenti.</p>
+    {% endif %}
+  </div>
+</form>
+{% endif %}
+
+{% if coda %}
+<div class="card">
+  <h3 style="margin-top:0">Coda ({{ coda|length }})</h3>
+  <table>
+    <tbody>
+      {% for lavoro in coda %}
+      <tr>
+        <td>
+          <strong>{{ lavoro.pn }}</strong> x{{ lavoro.quantita }}
+          {% if lavoro.ordine_interno %}
+            <span class="aiuto">— dal n. {{ lavoro.ordine_interno }}</span>
+          {% endif %}
+          {% if lavoro.con_riq %}<span class="badge ok">+ RIQ</span>{% endif %}
+        </td>
+        <td style="width:1%">
+          <form method="post" action="{{ url_for('coda_rimuovi', indice=loop.index0) }}">
+            <button class="chiaro piccolo" type="submit">Rimuovi</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="barra-azioni" style="margin-top:12px; margin-bottom:0">
+    <form method="post" action="{{ url_for('coda_genera') }}">
+      <button type="submit">Genera tutta la coda</button>
+    </form>
+    <form method="post" action="{{ url_for('coda_svuota') }}">
+      <button type="submit" class="chiaro">Svuota</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block script %}
+<script>
+  function toggleNA(chk, token) {
+    document.querySelector(`[data-campo="${CSS.escape(token)}"]`).disabled = chk.checked;
+    document.querySelector(`[data-na-testo="${CSS.escape(token)}"]`).hidden = !chk.checked;
+  }
+</script>
+{% endblock %}

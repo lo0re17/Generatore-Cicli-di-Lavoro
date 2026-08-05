@@ -1,0 +1,13 @@
+services:
+  fn-cicli:
+    build: .
+    container_name: fn-cicli
+    ports:
+      - "8071:5000"
+    volumes:
+      - ./templates:/app/templates
+      - ./anagrafica:/app/anagrafica
+      - ./web/instance:/app/web/instance
+    environment:
+      - SECRET_KEY=cambiare-in-produzione
+    restart: unless-stopped

@@ -1,0 +1,179 @@
+{
+  "pn": "70009309-P002",
+  "descrizione": "Assieme incollato copribracciolo CNT Sx",
+  "template": "template.xlsx",
+  "pattern_nome_file": "{ORDINE_INTERNO}_ODL_OR_{PN}_REV.{REV}.xlsx",
+  "campi": [
+    {
+      "token": "{{COMMESSA}}",
+      "etichetta": "Commessa",
+      "tipo": "testo",
+      "obbligatorio": true,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{ORDINE_ACQUISTO}}",
+      "etichetta": "Ordine d'Acquisto",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{ORDINE_INTERNO}}",
+      "etichetta": "Ordine Interno",
+      "tipo": "ordine_interno",
+      "obbligatorio": true,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": "Formato NNNN-YY. Si incrementa da solo per i cicli successivi."
+    },
+    {
+      "token": "{{NR_PEZZI}}",
+      "etichetta": "Nr. Pezzi",
+      "tipo": "intero",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{DATA_ODA}}",
+      "etichetta": "Data ODA",
+      "tipo": "data",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": "gg/mm/aaaa"
+    },
+    {
+      "token": "{{DATA_OI}}",
+      "etichetta": "Data OI",
+      "tipo": "data",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": "gg/mm/aaaa"
+    },
+    {
+      "token": "{{DATA_CONSEGNA}}",
+      "etichetta": "Data Consegna",
+      "tipo": "data",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Testata",
+      "aiuto": "gg/mm/aaaa (opzionale)"
+    },
+    {
+      "token": "{{REV}}",
+      "etichetta": "Rev.",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "1",
+      "gruppo": "Testata",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_MPL_076}}",
+      "etichetta": "MPL-076 — Divinycell H60 dim. 50x1220x2440",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_3V000107}}",
+      "etichetta": "3V000107 — Glue Zucchini 9631DM",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_5N005893}}",
+      "etichetta": "5N005893 — Inserto in Nylon",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_5N005231}}",
+      "etichetta": "5N005231 — Inserto in Nylon",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_5A007666}}",
+      "etichetta": "5A007666 — Piastra in alluminio",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_5A008049}}",
+      "etichetta": "5A008049 — Piastra in alluminio",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_5A008050}}",
+      "etichetta": "5A008050 — Piastra in alluminio",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_3K000005}}",
+      "etichetta": "3K000005 — Rivetti",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_3N000088}}",
+      "etichetta": "3N000088 — Cricchetto",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti distinta base",
+      "aiuto": ""
+    },
+    {
+      "token": "{{LOTTO_FASE_1}}",
+      "etichetta": "Lotto in fase (cella S40)",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti nelle fasi",
+      "aiuto": ""
+    },
+    {
+      "token": "{{SCADENZA_18}}",
+      "etichetta": "Scadenza (cella AA40)",
+      "tipo": "data",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti nelle fasi",
+      "aiuto": "gg/mm/aaaa (opzionale)"
+    }
+  ]
+}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% set attiva = 'importa' %}
+{% block titolo %}Importa anagrafica — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Importa anagrafica articoli</h2>
+
+{% if fase == 'scelta_file' %}
+<div class="card">
+  <p>Carica l'export del gestionale (Excel, CSV o TSV). Dopo il caricamento
+     potrai mappare le colonne e controllare l'anteprima prima di importare.</p>
+  <form method="post" action="{{ url_for('importa_anagrafica') }}" enctype="multipart/form-data">
+    <input type="hidden" name="fase" value="mappatura">
+    <label>File da importare *</label>
+    <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt" required
+           style="padding:6px 0; border:none">
+    <div class="barra-azioni" style="margin-top:12px; margin-bottom:0">
+      <button type="submit">Carica e prosegui</button>
+    </div>
+  </form>
+</div>
+
+{% elif fase == 'mappatura' %}
+<div class="card">
+  <h3 style="margin-top:0">Mappatura colonne</h3>
+  <p class="aiuto">{{ totale_righe }} righe lette dal file. Indica quale colonna
+     corrisponde a ciascun campo, poi controlla l'anteprima.</p>
+
+  <form method="post" action="{{ url_for('importa_anagrafica') }}">
+    <input type="hidden" name="fase" value="conferma">
+    <input type="hidden" name="percorso" value="{{ percorso }}">
+
+    <div class="riga">
+      <div>
+        <label>Colonna PN (codice articolo) *</label>
+        <select name="col_pn">
+          {% for h in intestazioni %}
+            <option value="{{ loop.index0 }}"
+              {% if mappatura.col_pn == loop.index0 %}selected{% endif %}>{{ h }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Colonna descrizione</label>
+        <select name="col_descrizione">
+          <option value="-1">— non presente —</option>
+          {% for h in intestazioni %}
+            <option value="{{ loop.index0 }}"
+              {% if mappatura.col_descrizione == loop.index0 %}selected{% endif %}>{{ h }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Colonna cliente</label>
+        <select name="col_cliente">
+          <option value="-1">— non presente —</option>
+          {% for h in intestazioni %}
+            <option value="{{ loop.index0 }}"
+              {% if mappatura.col_cliente == loop.index0 %}selected{% endif %}>{{ h }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="riga">
+      <div>
+        <label>Colonna tipo articolo (Tp)</label>
+        <select name="col_tipo">
+          <option value="-1">— non presente —</option>
+          {% for h in intestazioni %}
+            <option value="{{ loop.index0 }}"
+              {% if mappatura.col_tipo == loop.index0 %}selected{% endif %}>{{ h }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Colonna unita di misura</label>
+        <select name="col_um">
+          <option value="-1">— non presente —</option>
+          {% for h in intestazioni %}
+            <option value="{{ loop.index0 }}"
+              {% if mappatura.col_um == loop.index0 %}selected{% endif %}>{{ h }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Colonna codice alternativo</label>
+        <select name="col_cod_alt">
+          <option value="-1">— non presente —</option>
+          {% for h in intestazioni %}
+            <option value="{{ loop.index0 }}"
+              {% if mappatura.col_cod_alt == loop.index0 %}selected{% endif %}>{{ h }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="riga" style="margin-top:12px">
+      <div>
+        <label>Tipi da importare</label>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:4px">
+          {% for codice, etichetta in tipi_articolo.items() %}
+            <label style="display:flex; align-items:center; gap:4px; cursor:pointer">
+              <input type="checkbox" name="tipi" value="{{ codice }}"
+                {% if codice in tipi_scelti %}checked{% endif %}>
+              {{ etichetta }} ({{ codice }})
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; margin-top:20px">
+          <input type="checkbox" name="separa_revisione"
+            {% if separa_revisione %}checked{% endif %}>
+          Separa revisione dal codice (es. "70007927-P002 2" &rarr; PN + rev)
+        </label>
+      </div>
+    </div>
+
+    <div class="barra-azioni" style="margin-top:14px; margin-bottom:0">
+      <button type="submit">Aggiorna anteprima</button>
+    </div>
+
+    {% if anteprima and anteprima.righe %}
+    <h3>Anteprima ({{ anteprima.righe|length }} PN da importare
+        {%- if anteprima.esclusi %}, {{ anteprima.esclusi }} esclusi{% endif %})</h3>
+
+    {% for avviso in anteprima.avvisi %}
+      <div class="flash">{{ avviso }}</div>
+    {% endfor %}
+
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>PN</th><th>Rev.</th><th>Descrizione</th><th>Cliente</th><th>Stato</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in anteprima.righe[:50] %}
+          <tr>
+            <td>{{ v.pn }}</td>
+            <td>{{ v.revisione }}</td>
+            <td>{{ v.descrizione }}</td>
+            <td>{{ v.cliente or '—' }}</td>
+            <td>
+              {% if v.esito == 'nuovo' %}
+                <span class="badge ok">nuovo</span>
+              {% else %}
+                <span class="badge attesa">aggiornato</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          {% if anteprima.righe|length > 50 %}
+          <tr><td colspan="5" class="aiuto" style="text-align:center">
+            ...e altri {{ anteprima.righe|length - 50 }} PN
+          </td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:14px; padding-top:12px; border-top:1px solid #eee">
+      <div class="riga" style="align-items:flex-end">
+        <div>
+          <label>Assegna tutti a un cliente (opzionale)</label>
+          <select name="cliente_id">
+            <option value="">— non assegnare —</option>
+            {% for c in clienti %}
+              <option value="{{ c.id }}">{{ c.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="flex:0">
+          <button type="submit" name="conferma" value="1">Conferma import</button>
+        </div>
+      </div>
+    </div>
+    {% elif anteprima %}
+      {% for avviso in anteprima.avvisi %}
+        <div class="flash">{{ avviso }}</div>
+      {% endfor %}
+    {% endif %}
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

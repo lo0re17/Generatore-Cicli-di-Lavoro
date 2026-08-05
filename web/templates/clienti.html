@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set attiva = 'clienti' %}
+{% block titolo %}Clienti — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Clienti</h2>
+
+{% if puo_redigere %}
+<div class="card">
+  <h3 style="margin-top:0">Nuovo cliente</h3>
+  <form method="post" action="{{ url_for('clienti_nuovo') }}">
+    <div class="riga">
+      <div><label>Nome *</label>
+        <input name="nome" required></div>
+      <div><label>Indirizzo</label>
+        <input name="indirizzo"></div>
+    </div>
+    <div class="riga">
+      <div><label>Contatti</label>
+        <input name="contatti"></div>
+      <div><label>Note</label>
+        <input name="note"></div>
+    </div>
+    <div class="barra-azioni" style="margin-top:12px; margin-bottom:0">
+      <button type="submit">Aggiungi cliente</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if clienti %}
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Nome</th>
+        <th>Indirizzo</th>
+        <th>Contatti</th>
+        <th>PN</th>
+        {% if puo_redigere %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in clienti %}
+      <tr>
+        <td>
+          {% if puo_redigere %}
+          <details>
+            <summary>{{ c.nome }}</summary>
+            <form method="post" action="{{ url_for('clienti_modifica', cliente_id=c.id) }}"
+                  style="margin-top:8px">
+              <div class="riga">
+                <div><label>Nome</label>
+                  <input name="nome" value="{{ c.nome }}" required></div>
+                <div><label>Indirizzo</label>
+                  <input name="indirizzo" value="{{ c.indirizzo }}"></div>
+              </div>
+              <div class="riga">
+                <div><label>Contatti</label>
+                  <input name="contatti" value="{{ c.contatti }}"></div>
+                <div><label>Note</label>
+                  <input name="note" value="{{ c.note }}"></div>
+              </div>
+              <div class="barra-azioni" style="margin-top:8px; margin-bottom:0">
+                <button type="submit" class="piccolo">Salva modifiche</button>
+              </div>
+            </form>
+          </details>
+          {% else %}
+            {{ c.nome }}
+          {% endif %}
+        </td>
+        <td>{{ c.indirizzo }}</td>
+        <td>{{ c.contatti }}</td>
+        <td><span class="badge neutro">{{ c.n_pn }}</span></td>
+        {% if puo_redigere %}
+        <td style="width:1%">
+          <form method="post" action="{{ url_for('clienti_elimina', cliente_id=c.id) }}"
+                onsubmit="return confirm('Eliminare il cliente {{ c.nome }}?')">
+            <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card"><p class="vuoto">Nessun cliente presente.</p></div>
+{% endif %}
+
+{% endblock %}

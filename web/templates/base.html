@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titolo %}Generatore Cicli{% endblock %}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f4f5f7;
+           margin: 0; color: #222; font-size: 14px; }
+    header { background: #2c3e50; color: white; padding: 0 20px; display: flex;
+             justify-content: space-between; align-items: center; flex-wrap: wrap; }
+    header .marchio { font-size: 15px; font-weight: 600; padding: 14px 0; }
+    nav { display: flex; gap: 2px; }
+    nav a { color: #cbd5df; font-size: 13px; text-decoration: none; padding: 14px 12px; }
+    nav a:hover { background: #3b5064; color: white; }
+    nav a.attivo { background: #1d2b38; color: white; }
+    .utente { font-size: 12px; color: #9fb0c0; padding: 14px 0; }
+    .utente a { color: #cbd5df; margin-left: 10px; }
+    main { max-width: 1000px; margin: 20px auto; padding: 0 16px 40px; }
+    h2 { font-size: 17px; color: #2c3e50; margin: 0 0 14px; font-weight: 600; }
+    h3 { font-size: 14px; color: #2c3e50; margin: 18px 0 8px; font-weight: 600; }
+    .card { background: white; border-radius: 8px; padding: 16px 18px;
+            margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    label { font-size: 12px; color: #666; display: block; margin: 8px 0 3px; }
+    input, select, textarea { width: 100%; padding: 7px 8px; font-size: 14px;
+                              border: 1px solid #ccc; border-radius: 4px;
+                              font-family: inherit; background: white; }
+    input:disabled, select:disabled { background: #f0f0f0; color: #999; }
+    input[type=checkbox] { width: auto; }
+    button, .bottone { padding: 8px 16px; font-size: 14px; font-weight: 600;
+             background: #2c3e50; color: white; border: none; border-radius: 4px;
+             cursor: pointer; text-decoration: none; display: inline-block; }
+    button:hover { background: #3b5064; }
+    button.chiaro { background: #e4e7eb; color: #333; font-weight: 400; }
+    button.chiaro:hover { background: #d5d9de; }
+    button.pericolo { background: #b03030; }
+    button.piccolo { padding: 4px 9px; font-size: 12px; font-weight: 400; }
+    .flash { background: #fdecea; color: #a33; padding: 9px 12px; border-radius: 4px;
+             font-size: 13px; margin-bottom: 10px; border-left: 3px solid #d55; }
+    .aiuto { font-size: 11px; color: #888; margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; font-weight: 600; color: #555; padding: 7px 8px;
+         border-bottom: 2px solid #e0e0e0; font-size: 12px; }
+    td { padding: 7px 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    tr:hover td { background: #fafbfc; }
+    .riga { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+    .riga > * { flex: 1; min-width: 140px; }
+    .riga.stretta > * { flex: none; }
+    .badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .badge.ok { background: #e3f4e8; color: #256b39; }
+    .badge.attesa { background: #fdf2dc; color: #8a5d0a; }
+    .badge.neutro { background: #eceff1; color: #556; }
+    .vuoto { color: #999; font-style: italic; padding: 16px 0; text-align: center; }
+    .barra-azioni { display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+                    margin-bottom: 12px; }
+    .barra-azioni > form { display: inline; }
+    details summary { cursor: pointer; font-size: 13px; color: #2c3e50; padding: 4px 0; }
+  </style>
+</head>
+<body>
+{% if session.get('utente_id') %}
+<header>
+  <span class="marchio">Generatore Cicli — F&amp;N compositi</span>
+  <nav>
+    <a href="{{ url_for('dashboard') }}" {% if attiva == 'genera' %}class="attivo"{% endif %}>Genera</a>
+    <a href="{{ url_for('pn_elenco') }}" {% if attiva == 'pn' %}class="attivo"{% endif %}>Anagrafica PN</a>
+    <a href="{{ url_for('clienti') }}" {% if attiva == 'clienti' %}class="attivo"{% endif %}>Clienti</a>
+    {% if puo_redigere %}
+      <a href="{{ url_for('importa_anagrafica') }}" {% if attiva == 'importa' %}class="attivo"{% endif %}>Importa</a>
+    {% endif %}
+    <a href="{{ url_for('storico') }}" {% if attiva == 'storico' %}class="attivo"{% endif %}>Storico</a>
+  </nav>
+  <span class="utente">
+    {{ session.get('nome_visualizzato') or session.get('username') }} — {{ etichetta_ruolo }}
+    <a href="{{ url_for('logout') }}">Esci</a>
+  </span>
+</header>
+{% endif %}
+<main>
+  {% with messaggi = get_flashed_messages() %}
+    {% for m in messaggi %}<div class="flash">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block contenuto %}{% endblock %}
+</main>
+{% block script %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set attiva = 'storico' %}
+{% block titolo %}Storico generazioni — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Storico generazioni</h2>
+
+{% if righe %}
+<div class="card" style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Data/ora</th>
+        <th>Utente</th>
+        <th>PN</th>
+        <th>Tipo</th>
+        <th>Ordine Interno</th>
+        <th>Qty</th>
+        <th>File generati</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in righe %}
+      <tr>
+        <td style="white-space:nowrap">{{ r.quando[:16].replace('T', ' ') }}</td>
+        <td>{{ r.username }}</td>
+        <td>{{ r.pn }}</td>
+        <td>
+          {% if 'riq' in r.tipi_documento %}
+            <span class="badge ok">ODL + RIQ</span>
+          {% elif 'cqc' in r.tipi_documento %}
+            <span class="badge attesa">CQC</span>
+          {% else %}
+            <span class="badge neutro">ODL</span>
+          {% endif %}
+        </td>
+        <td>{{ r.ordine_interno }}</td>
+        <td>{{ r.quantita }}</td>
+        <td class="aiuto">
+          {% if r.file_generati %}
+            {{ r.file_generati.replace('\n', ', ') }}
+          {% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card"><p class="vuoto">Nessuna generazione registrata.</p></div>
+{% endif %}
+
+{% endblock %}

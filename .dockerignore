@@ -1,0 +1,10 @@
+build/
+dist/
+output/
+__pycache__/
+**/__pycache__/
+*.pyc
+GeneratoreCicli.spec
+web/instance/
+web/flask.log
+.git/

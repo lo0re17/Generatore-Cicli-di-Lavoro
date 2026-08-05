@@ -1,0 +1,109 @@
+{
+  "pn": "55631490",
+  "descrizione": "Honeycomb N°3 Aletta Mobile",
+  "template": "template.xlsx",
+  "pattern_nome_file": "{ORDINE_INTERNO}_ODL_OR_{PN}_REV.{REV}.xlsx",
+  "campi": [
+    {
+      "token": "{{COMMESSA}}",
+      "etichetta": "Commessa",
+      "tipo": "testo",
+      "obbligatorio": true,
+      "default": "",
+      "gruppo": "Ordini"
+    },
+    {
+      "token": "{{REV}}",
+      "etichetta": "Rev.",
+      "tipo": "testo",
+      "default": "F",
+      "gruppo": "Dati fissi",
+      "fisso": true
+    },
+    {
+      "token": "{{ORDINE_ACQUISTO}}",
+      "etichetta": "Ordine d'Acquisto",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Ordini"
+    },
+    {
+      "token": "{{ORDINE_INTERNO}}",
+      "etichetta": "Ordine Interno",
+      "tipo": "ordine_interno",
+      "obbligatorio": true,
+      "default": "",
+      "gruppo": "Ordini",
+      "aiuto": "Formato NNNN-YY. Si incrementa da solo per i cicli successivi."
+    },
+    {
+      "token": "{{NR_PEZZI}}",
+      "etichetta": "Nr. Pezzi",
+      "tipo": "intero",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Ordini"
+    },
+    {
+      "token": "{{LOTTO}}",
+      "etichetta": "Lotto di produzione",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Consegna"
+    },
+    {
+      "token": "{{DDT}}",
+      "etichetta": "N. DDT",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Consegna"
+    },
+    {
+      "token": "{{DATA_CONSEGNA}}",
+      "etichetta": "Data DDT / Data Consegna",
+      "tipo": "data",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Consegna",
+      "aiuto": "gg/mm/aaaa"
+    },
+    {
+      "token": "{{DATA_ODA}}",
+      "etichetta": "Data Ordine d'Acquisto (ODA)",
+      "tipo": "data",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Date",
+      "aiuto": "gg/mm/aaaa"
+    },
+    {
+      "token": "{{DATA_OI}}",
+      "etichetta": "Data Ordine Interno (OI)",
+      "tipo": "data",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Date",
+      "aiuto": "gg/mm/aaaa"
+    },
+    {
+      "token": "{{LOTTO_FASE_1}}",
+      "etichetta": "Lotto in fase (cella S37)",
+      "tipo": "lotto",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti nelle fasi"
+    },
+    {
+      "token": "{{SCADENZA_9}}",
+      "etichetta": "Scadenza (cella AA37)",
+      "tipo": "testo",
+      "obbligatorio": false,
+      "default": "",
+      "gruppo": "Lotti nelle fasi",
+      "aiuto": "gg/mm/aaaa oppure '-' o 'N/A'"
+    }
+  ]
+}
