@@ -5,3 +5,7 @@ build/
 venv/
 __pycache__/
 *.pyc
+output/
+web/instance/
+web/flask.log
+*.log
