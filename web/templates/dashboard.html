@@ -107,7 +107,8 @@
           <input name="{{ campo.token }}" value="{{ val_corrente }}"
                  data-campo="{{ campo.token }}" style="flex:1"
                  {% if campo.tipo == 'data' %}data-tipo="data" placeholder="gg/mm/aaaa"{% endif %}
-                 {% if campo.tipo == 'lotto' %}data-campo-lotto="1"{% endif %}
+                 {% if campo.tipo == 'lotto' %}data-campo-lotto="1"
+                    data-lotto-gruppo="{{ 'fase' if campo.gruppo == 'Lotti nelle fasi' else 'distinta' }}"{% endif %}
                  {% if campo.tipo == 'data' and 'cad' in campo.etichetta|lower %}data-campo-scadenza="1"{% endif %}
                  {% if na_attivo %}disabled{% endif %}>
           <input type="checkbox" name="na__{{ campo.token }}" id="na_{{ loop.index }}"
@@ -318,6 +319,19 @@
     document.querySelector(`[data-campo="${CSS.escape(token)}"]`).disabled = chk.checked;
     document.querySelector(`[data-na-testo="${CSS.escape(token)}"]`).hidden = !chk.checked;
   }
+
+  // Se c'e' un solo campo lotto "di distinta", il suo valore si ripete in
+  // automatico nei campi lotto rilevati nelle fasi (restano comunque
+  // modificabili singolarmente in seguito).
+  (function () {
+    var distinta = document.querySelectorAll('[data-lotto-gruppo="distinta"]');
+    var fasi = document.querySelectorAll('[data-lotto-gruppo="fase"]');
+    if (distinta.length === 1 && fasi.length > 0) {
+      distinta[0].addEventListener('input', function () {
+        fasi.forEach(function (c) { c.value = distinta[0].value; });
+      });
+    }
+  })();
 
   // Tendina materiale/lotto: compila i campi lotto e le date "scadenza".
   var selLotto = document.getElementById('sel_lotto_materiale');

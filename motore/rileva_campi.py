@@ -253,6 +253,17 @@ def analizza(percorso: str | Path) -> Proposta:
     valori_lotto = {c.valore_attuale: c for c in prop.campi
                     if c.tipo == "lotto" and c.valore_attuale}
 
+    # Case-insensitive, tollera abbreviazioni ("Lotto n.:", "Scad.:") e
+    # testo prima dell'etichetta ("Vedi Lotto: X"), non solo a inizio cella.
+    _RE_LOTTO_LABEL = re.compile(r"(?i)lotto\s*n?\.?\s*:\s*(.*)")
+    _RE_SCADENZA_LABEL = re.compile(r"(?i)scad(?:enza)?\.?\s*:\s*(.*)")
+    _RE_STOP_VALORE = re.compile(r"(?i)\s{2,}|\bscadenza\b|\bscad\.|\blotto\b")
+
+    def _estrai_valore(coda: str) -> str:
+        coda = coda.strip()
+        m = _RE_STOP_VALORE.search(coda)
+        return (coda[:m.start()] if m else coda).strip(" \t-:")
+
     n_fase_anon = 0
     for riga in ws.iter_rows():
         for cella in riga:
@@ -267,32 +278,42 @@ def analizza(percorso: str | Path) -> Proposta:
                     if len(val) >= 3 or f"Lotto: {val}" in v:
                         campo.sostituzioni.append((cella.coordinate, val))
 
-            # 2) "Lotto:" con valore non censito in distinta
-            m = re.match(r"^\s*Lotto:\s*(\S.*?)\s*$", v)
-            if m and m.group(1) not in valori_lotto:
-                n_fase_anon += 1
-                token = "{{LOTTO_FASE_" + str(n_fase_anon) + "}}"
-                aggiungi(CampoProposto(
-                    token=token, etichetta=f"Lotto in fase (cella {cella.coordinate})",
-                    tipo="lotto", valore_attuale=m.group(1),
-                    gruppo="Lotti nelle fasi",
-                    sostituzioni=[(cella.coordinate, m.group(1))]))
+            # righe multiple nella stessa cella (testo con "a capo")
+            for riga_testo in v.splitlines() or [v]:
+                # 2) "Lotto:" con valore non censito in distinta
+                m = _RE_LOTTO_LABEL.search(riga_testo)
+                if m:
+                    valore = _estrai_valore(m.group(1))
+                    if not valore:
+                        coord_dx, val_dx = _valore_dx(ws, cella.row, cella.column, merges,
+                                                       max_scan=3)
+                        valore = _fmt(val_dx).strip() if val_dx else ""
+                    if valore not in valori_lotto:
+                        n_fase_anon += 1
+                        token = "{{LOTTO_FASE_" + str(n_fase_anon) + "}}"
+                        aggiungi(CampoProposto(
+                            token=token,
+                            etichetta=f"Lotto in fase (cella {cella.coordinate})",
+                            tipo="lotto", valore_attuale=valore,
+                            gruppo="Lotti nelle fasi",
+                            sostituzioni=[(cella.coordinate,
+                                          valore if valore else "__APPEND__")]))
 
-            # 3) "Scadenza:" con o senza valore
-            m = re.match(r"^(.*?Scadenza:)\s*(\S.*?)?\s*$", v)
-            if m and "scadenza" in v.lower():
-                valore_scad = (m.group(2) or "").strip()
-                token = "{{SCADENZA_" + str(len(prop.campi)) + "}}"
-                if valore_scad:
-                    sost = [(cella.coordinate, valore_scad)]
-                else:
-                    sost = [(cella.coordinate, "__APPEND__")]
-                aggiungi(CampoProposto(
-                    token=token,
-                    etichetta=f"Scadenza (cella {cella.coordinate})",
-                    tipo="data", valore_attuale=valore_scad,
-                    gruppo="Lotti nelle fasi", aiuto="gg/mm/aaaa (opzionale)",
-                    sostituzioni=sost))
+                # 3) "Scadenza:" con o senza valore
+                m = _RE_SCADENZA_LABEL.search(riga_testo)
+                if m:
+                    valore_scad = _estrai_valore(m.group(1))
+                    token = "{{SCADENZA_" + str(len(prop.campi)) + "}}"
+                    if valore_scad:
+                        sost = [(cella.coordinate, valore_scad)]
+                    else:
+                        sost = [(cella.coordinate, "__APPEND__")]
+                    aggiungi(CampoProposto(
+                        token=token,
+                        etichetta=f"Scadenza (cella {cella.coordinate})",
+                        tipo="data", valore_attuale=valore_scad,
+                        gruppo="Lotti nelle fasi", aiuto="gg/mm/aaaa (opzionale)",
+                        sostituzioni=sost))
 
     return prop
 
