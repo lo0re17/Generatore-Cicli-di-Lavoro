@@ -1006,11 +1006,12 @@ def configurazioni_operatori():
 
         if azione == "salva":
             sigla = request.form.get("sigla", "").strip().upper()
+            sigla_originale = request.form.get("sigla_originale", "").strip().upper()
             if not sigla:
                 flash("La sigla è obbligatoria.")
                 return redirect(url_for("configurazioni_operatori"))
 
-            esistente = anagrafica_operatori.operatore(sigla)
+            esistente = anagrafica_operatori.operatore(sigla_originale or sigla)
             op = Operatore(
                 sigla=sigla,
                 nome=request.form.get("nome", "").strip(),
@@ -1028,6 +1029,8 @@ def configurazioni_operatori():
                 file_firma.save(cartella_firme / nome_file)
                 op.firma = f"firme/{nome_file}"
 
+            if sigla_originale and sigla_originale != sigla:
+                anagrafica_operatori.rimuovi(sigla_originale)
             anagrafica_operatori.aggiungi_o_aggiorna(op)
             anagrafica_operatori.salva()
             registra_azione("salva_operatore", sigla)

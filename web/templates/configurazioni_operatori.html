@@ -8,10 +8,9 @@
 
 <div class="card">
   <details>
-    <summary>Nuovo operatore / modifica esistente</summary>
-    <p class="aiuto">Usa la stessa sigla di un operatore esistente per modificarlo.
-      La firma caricata viene adattata automaticamente alla cella dedicata
-      nel template al momento della generazione.</p>
+    <summary>Nuovo operatore</summary>
+    <p class="aiuto">La firma caricata viene adattata automaticamente alla cella
+      dedicata nel template al momento della generazione.</p>
     <form method="post" enctype="multipart/form-data" style="margin-top:8px">
       <input type="hidden" name="azione" value="salva">
       <div class="riga">
@@ -41,7 +40,33 @@
     <tbody>
       {% for o in operatori %}
       <tr>
-        <td>{{ o.sigla }}</td>
+        <td>
+          <details>
+            <summary>{{ o.sigla }}</summary>
+            <form method="post" enctype="multipart/form-data" style="margin-top:6px">
+              <input type="hidden" name="azione" value="salva">
+              <input type="hidden" name="sigla_originale" value="{{ o.sigla }}">
+              <div class="riga">
+                <div><label>Sigla</label>
+                  <input name="sigla" value="{{ o.sigla }}" required style="text-transform:uppercase"></div>
+                <div><label>Nome e cognome</label><input name="nome" value="{{ o.nome }}"></div>
+                <div><label>Matricola</label><input name="matricola" value="{{ o.matricola }}"></div>
+                <div><label>Reparto</label><input name="reparto" value="{{ o.reparto }}"></div>
+              </div>
+              <div class="riga">
+                <div><label>Nuova firma (.png) — lascia vuoto per non cambiarla</label>
+                  <input type="file" name="firma" accept=".png"></div>
+                <div><label style="display:flex; align-items:center; gap:6px; margin-top:20px">
+                  <input type="checkbox" name="e_cq" style="width:auto" {% if o.e_cq %}checked{% endif %}>
+                  Abilitato come firmatario CQ (RIQ)
+                </label></div>
+              </div>
+              <div class="barra-azioni" style="margin-top:6px; margin-bottom:0">
+                <button type="submit" class="piccolo">Salva</button>
+              </div>
+            </form>
+          </details>
+        </td>
         <td>{{ o.nome or '—' }}</td>
         <td>{{ o.matricola or '—' }}</td>
         <td>{{ o.reparto or '—' }}</td>
