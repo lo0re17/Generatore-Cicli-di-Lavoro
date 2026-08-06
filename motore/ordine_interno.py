@@ -14,6 +14,24 @@ import re
 _RE_NNNN_YY = re.compile(r"^(\s*)(\d+)(-\d+)(\s*)$")
 # Fallback: incrementa l'ultimo gruppo di cifre presente nella stringa.
 _RE_ULTIMO_NUM = re.compile(r"(\d+)(?!.*\d)")
+# Progressivo-anno con anno inserito per esteso (4 cifre): 6935-2026
+_RE_ANNO_ESTESO = re.compile(r"^(\s*\d+\s*-\s*)(\d{4})(\s*)$")
+
+
+def normalizza(base: str) -> str:
+    """Se l'anno e' stato digitato per esteso (4 cifre) lo riduce alle
+    ultime 2, secondo la convenzione dell'Ordine Interno (NNNN-YY).
+
+    >>> normalizza("6935-2026")
+    '6935-26'
+    >>> normalizza("6935-26")
+    '6935-26'
+    """
+    m = _RE_ANNO_ESTESO.match(str(base))
+    if m:
+        pre, anno, post = m.groups()
+        return f"{pre}{anno[-2:]}{post}"
+    return base
 
 
 def incrementa(base: str, passo: int = 1) -> str:

@@ -114,6 +114,21 @@
       non sono editabili qui perché guidano il layout dell'intera tabella misure.</p>
   </div>
 
+  <div class="card" style="overflow-x:auto">
+    <h3 style="margin-top:0">Aggiungi campo mancante</h3>
+    <p class="aiuto" style="margin-bottom:10px">Se il riconoscimento automatico non
+      ha trovato un campo di testata (es. un lotto o una scadenza), aggiungilo qui.</p>
+    <table id="tabella_extra">
+      <thead>
+        <tr>
+          <th>Etichetta</th><th>Tipo</th><th>Cella</th><th>Obbligatorio</th><th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button type="button" class="chiaro piccolo" onclick="aggiungiCampoExtra()">+ Aggiungi riga</button>
+  </div>
+
   <div class="barra-azioni">
     <button type="submit">Crea template RIQ</button>
     <a href="{{ url_for('riq_nuovo') }}" class="chiaro bottone">Annulla</a>
@@ -121,4 +136,25 @@
 </form>
 {% endif %}
 
+{% endblock %}
+
+{% block script %}
+<script>
+  function aggiungiCampoExtra() {
+    var tbody = document.querySelector('#tabella_extra tbody');
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input name="extra_etichetta" style="min-width:200px"></td>' +
+      '<td><select name="extra_tipo">' +
+        '<option value="testo">testo</option>' +
+        '<option value="data">data</option>' +
+        '<option value="intero">intero</option>' +
+        '<option value="lotto">lotto</option>' +
+      '</select></td>' +
+      '<td><input name="extra_cella" placeholder="es. B8" style="width:80px; font-family:monospace"></td>' +
+      '<td><select name="extra_obbligatorio"><option value="no">no</option><option value="si">si</option></select></td>' +
+      '<td><button type="button" class="chiaro piccolo" onclick="this.closest(\'tr\').remove()">Rimuovi</button></td>';
+    tbody.appendChild(tr);
+  }
+</script>
 {% endblock %}

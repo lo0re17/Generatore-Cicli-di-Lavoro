@@ -90,6 +90,7 @@
         <div class="riga stretta" style="gap:8px; align-items:center">
           <input name="{{ campo.token }}" value="{{ val_corrente }}"
                  data-campo="{{ campo.token }}" style="flex:1"
+                 {% if campo.tipo == 'data' %}data-tipo="data" placeholder="gg/mm/aaaa"{% endif %}
                  {% if na_attivo %}disabled{% endif %}>
           <input type="checkbox" name="na__{{ campo.token }}" id="na_{{ loop.index }}"
                  onchange="toggleNA(this, '{{ campo.token }}')"
@@ -117,6 +118,7 @@
         <div>
           <label>Data esecuzione globale</label>
           <input type="text" name="data_esecuzione" placeholder="gg/mm/aaaa" style="width:130px"
+                 data-tipo="data"
                  value="{{ valori_salvati.get('data_esecuzione', '') if valori_salvati else '' }}">
           <div class="aiuto">Usata per le fasi senza data specifica</div>
         </div>
@@ -159,7 +161,7 @@
             </td>
             <td>
               <input type="text" name="fase_data_{{ loop.index0 }}" placeholder="gg/mm/aaaa"
-                     style="width:100%; font-size:0.9em">
+                     data-tipo="data" style="width:100%; font-size:0.9em">
             </td>
           </tr>
           {% endfor %}
@@ -183,6 +185,12 @@
           Ultimo ciclo con n. pezzi diverso
         </label>
         <input type="number" name="pezzi_ultimo" id="pezzi_ultimo" min="1" value="1" hidden>
+      </div>
+      <div style="flex:0 0 200px">
+        <label>Indicazione aggiuntiva nel nome file</label>
+        <input name="suffisso_nome" placeholder="es. SS1"
+               value="{{ valori_salvati.get('suffisso_nome', '') if valori_salvati else '' }}">
+        <div class="aiuto">Es. shipset: aggiunta al nome del file generato.</div>
       </div>
     </div>
 
@@ -292,5 +300,17 @@
     document.querySelector(`[data-campo="${CSS.escape(token)}"]`).disabled = chk.checked;
     document.querySelector(`[data-na-testo="${CSS.escape(token)}"]`).hidden = !chk.checked;
   }
+
+  // Autocompletamento "/" durante la digitazione delle date (gg/mm/aa o gg/mm/aaaa).
+  document.querySelectorAll('input[data-tipo="data"]').forEach(function (campo) {
+    campo.addEventListener('input', function () {
+      var cifre = campo.value.replace(/[^0-9]/g, '').slice(0, 8);
+      var parti = [];
+      if (cifre.length > 0) parti.push(cifre.slice(0, 2));
+      if (cifre.length > 2) parti.push(cifre.slice(2, 4));
+      if (cifre.length > 4) parti.push(cifre.slice(4));
+      campo.value = parti.join('/');
+    });
+  });
 </script>
 {% endblock %}

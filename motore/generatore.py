@@ -122,12 +122,13 @@ def _parse_data(valore: Any) -> datetime | None:
     testo = str(valore).strip()
     if not testo:
         return None
-    for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%d/%m/%y", "%m/%d/%Y"):
+    for fmt in ("%d/%m/%Y", "%d/%m/%y", "%d-%m-%Y", "%d-%m-%y",
+                "%d.%m.%Y", "%d.%m.%y", "%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y"):
         try:
             return datetime.strptime(testo, fmt)
         except ValueError:
             continue
-    raise ValueError(f"Data non riconosciuta: '{valore}' (usa gg/mm/aaaa)")
+    raise ValueError(f"Data non riconosciuta: '{valore}' (usa gg/mm/aaaa o gg/mm/aa)")
 
 
 def _valore_stringa(campo: Campo, valore: Any) -> str:
@@ -370,8 +371,10 @@ def _sanitizza_nome(nome: str) -> str:
     return _CARATTERI_VIETATI_FILE.sub("-", nome).strip()
 
 
-def _nome_file(config: ConfigPN, valori: dict[str, Any]) -> str:
-    """Rende il pattern del nome file usando PN + valori dei token."""
+def _nome_file(config: ConfigPN, valori: dict[str, Any], suffisso: str = "") -> str:
+    """Rende il pattern del nome file usando PN + valori dei token.
+
+    ``suffisso`` (es. uno shipset "SS1") viene aggiunto prima dell'estensione."""
     contesto = {"PN": config.pn}
     for c in config.campi:
         nome_chiave = c.token.strip("{}")  # {{ORDINE_INTERNO}} -> ORDINE_INTERNO
@@ -382,6 +385,10 @@ def _nome_file(config: ConfigPN, valori: dict[str, Any]) -> str:
         return str(contesto.get(chiave, m.group(0)))
 
     nome = re.sub(r"\{([A-Za-z0-9_]+)\}", sostituisci, config.pattern_nome_file)
+    suffisso = suffisso.strip()
+    if suffisso:
+        p = Path(nome)
+        nome = f"{p.stem}_{suffisso}{p.suffix}"
     return _sanitizza_nome(nome)
 
 
@@ -392,6 +399,7 @@ def genera_batch(
     cartella_out: str | Path,
     pezzi_override: dict[int, Any] | None = None,
     interventi: list["InterventoFase"] | None = None,
+    suffisso_nome: str = "",
 ) -> list[Path]:
     """Genera ``quantita`` cicli incrementando l'Ordine Interno.
 
@@ -400,6 +408,7 @@ def genera_batch(
     - ``pezzi_override``: {indice_ciclo (0-based): nr_pezzi} per dare all'ultimo
       ciclo di un lotto un numero di pezzi diverso.
     - ``interventi``: data/firma da applicare alle fasi (uguali per tutti i cicli).
+    - ``suffisso_nome``: testo libero (es. "SS1") aggiunto al nome file.
     """
     if quantita < 1:
         return []
@@ -423,7 +432,7 @@ def genera_batch(
         valori[campo_oi.token] = serie_oi[i]
         if campo_pezzi is not None and i in pezzi_override:
             valori[campo_pezzi.token] = pezzi_override[i]
-        nome = _nome_file(config, valori)
+        nome = _nome_file(config, valori, suffisso_nome)
         prodotti.append(
             genera_ciclo(config, valori, cartella_out / nome, interventi=interventi)
         )

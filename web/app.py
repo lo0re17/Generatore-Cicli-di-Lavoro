@@ -232,7 +232,10 @@ def _raccogli_valori(config: G.ConfigPN) -> dict[str, object]:
             testo = request.form.get(f"na_testo__{c.token}", "").strip() or "-"
             valori[c.token] = G.NonApplicabile(testo)
         else:
-            valori[c.token] = request.form.get(c.token, "")
+            valore = request.form.get(c.token, "")
+            if c.tipo == "ordine_interno":
+                valore = OI.normalizza(valore)
+            valori[c.token] = valore
     return valori
 
 
@@ -344,6 +347,7 @@ def _leggi_lavoro() -> tuple[dict, str | None]:
                    for k, v in valori.items()},
         "na": [k for k, v in valori.items() if isinstance(v, G.NonApplicabile)],
         "pezzi_override": pezzi_override,
+        "suffisso_nome": request.form.get("suffisso_nome", "").strip(),
         "con_riq": bool(request.form.get("con_riq")),
         "riq_progressivo": request.form.get("riq_progressivo", "come_odl"),
         "ordine_interno": ordine_interno,
@@ -367,7 +371,8 @@ def _esegui_lavoro(lavoro: dict, cartella: Path) -> list[Path]:
 
     prodotti = G.genera_batch(config, valori, lavoro["quantita"], cartella,
                               pezzi_override=lavoro.get("pezzi_override") or {},
-                              interventi=interventi or None)
+                              interventi=interventi or None,
+                              suffisso_nome=lavoro.get("suffisso_nome", ""))
 
     if lavoro.get("con_riq"):
         prodotti += _genera_riq(lavoro, config, valori, cartella)
@@ -718,6 +723,22 @@ def _wizard_crea():
         campo.obbligatorio = bool(request.form.get(f"obbligatorio_{i}"))
         campo.cella = request.form.get(f"cella_{i}", campo.cella).strip().upper()
 
+    for etich, cella, tipo, obbl in zip(
+        request.form.getlist("extra_etichetta"),
+        request.form.getlist("extra_cella"),
+        request.form.getlist("extra_tipo"),
+        request.form.getlist("extra_obbligatorio"),
+    ):
+        etich = etich.strip()
+        cella = cella.strip().upper()
+        if not etich or not cella:
+            continue
+        proposta.campi.append(RC.CampoProposto(
+            token="{{" + RC._slug(etich) + "}}",
+            etichetta=etich, tipo=tipo or "testo", cella=cella,
+            obbligatorio=(obbl == "si"), incluso=True,
+        ))
+
     def _riesponi(messaggio: str):
         flash(messaggio)
         return render_template("nuovo.html", fase="revisione",
@@ -805,6 +826,22 @@ def _wizard_riq_crea():
             campo.etichetta = etichetta
         campo.obbligatorio = bool(request.form.get(f"obbligatorio_{i}"))
         campo.cella = request.form.get(f"cella_{i}", campo.cella).strip().upper()
+
+    for etich, cella, tipo, obbl in zip(
+        request.form.getlist("extra_etichetta"),
+        request.form.getlist("extra_cella"),
+        request.form.getlist("extra_tipo"),
+        request.form.getlist("extra_obbligatorio"),
+    ):
+        etich = etich.strip()
+        cella = cella.strip().upper()
+        if not etich or not cella:
+            continue
+        proposta.campi.append(RCR.CampoRIQProposto(
+            token="{{" + RCR._slug(etich) + "}}",
+            etichetta=etich, tipo=tipo or "testo", cella=cella,
+            obbligatorio=(obbl == "si"), incluso=True,
+        ))
 
     def _riesponi(messaggio: str):
         flash(messaggio)
