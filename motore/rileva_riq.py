@@ -38,6 +38,7 @@ class CampoRIQProposto:
     obbligatorio: bool = False
     default: str = ""
     incluso: bool = True
+    fisso: bool = False
 
 
 @dataclass
@@ -313,6 +314,7 @@ def costruisci_template_riq(prop: PropostaRIQ, cartella_templates: str | Path,
             "default": campo.default,
             "gruppo": campo.gruppo,
             "aiuto": campo.aiuto,
+            "fisso": campo.fisso,
         })
 
     nome_template = "template_riq.xlsx"

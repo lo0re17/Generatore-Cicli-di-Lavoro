@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% set attiva = 'pn' %}
+{% block titolo %}Nuovo RIQ — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Nuovo RIQ da rapporto compilato</h2>
+
+{% if fase == 'scelta_file' %}
+<div class="card">
+  <p class="aiuto">Carica un RIQ già compilato (famiglia "Mod 02-01_riq_CQ"):
+    il riconoscimento automatico propone i campi di testata, la tabella
+    misure e il blocco esito, da rivedere prima di creare il template.
+    Il template RIQ va nella stessa cartella del PN corrispondente
+    (deve avere già un ODL, o verrà creata una nuova cartella).</p>
+  <form method="post" action="{{ url_for('riq_nuovo') }}" enctype="multipart/form-data">
+    <input type="hidden" name="fase" value="revisione">
+    <label>RIQ compilato (.xlsx)</label>
+    <input type="file" name="file" accept=".xlsx" required>
+    <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+      <button type="submit">Analizza</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if fase == 'revisione' %}
+<form method="post" action="{{ url_for('riq_nuovo') }}">
+  <input type="hidden" name="fase" value="crea">
+  <input type="hidden" name="percorso" value="{{ percorso }}">
+
+  <div class="card">
+    <div class="riga">
+      <div><label>PN (part number) *</label>
+        <input name="pn" value="{{ proposta.pn }}" required></div>
+      <div><label>Descrizione</label>
+        <input name="descrizione" value="{{ proposta.descrizione }}"></div>
+    </div>
+  </div>
+
+  {% if proposta.avvisi %}
+  <div class="card">
+    <h3 style="margin-top:0">Avvisi del riconoscimento</h3>
+    <ul class="aiuto" style="margin:0; padding-left:18px">
+      {% for a in proposta.avvisi %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="card" style="overflow-x:auto">
+    <h3 style="margin-top:0">Campi di testata riconosciuti</h3>
+    <p class="aiuto" style="margin-bottom:10px">
+      <strong>Cella</strong>: correggila a mano se il riconoscimento automatico
+      ha sbagliato o non ha trovato nulla.</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:1%">Incluso</th>
+          <th style="width:1%">Fisso</th>
+          <th style="width:1%">Obbl.</th>
+          <th>Etichetta</th>
+          <th>Tipo</th>
+          <th>Cella</th>
+          <th>Valore attuale</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for campo in proposta.campi %}
+        <tr>
+          <td><input type="checkbox" name="incluso_{{ loop.index0 }}" {% if campo.incluso %}checked{% endif %}></td>
+          <td><input type="checkbox" name="fisso_{{ loop.index0 }}" {% if campo.fisso %}checked{% endif %}></td>
+          <td><input type="checkbox" name="obbligatorio_{{ loop.index0 }}" {% if campo.obbligatorio %}checked{% endif %}></td>
+          <td><input name="etichetta_{{ loop.index0 }}" value="{{ campo.etichetta }}" style="min-width:200px"></td>
+          <td>{{ campo.tipo }}</td>
+          <td><input name="cella_{{ loop.index0 }}" value="{{ campo.cella }}"
+                     placeholder="es. B8" style="width:80px; font-family:monospace"></td>
+          <td>{{ campo.valore_attuale or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <h3 style="margin-top:0">Tabella misure riconosciuta</h3>
+    {% if proposta.righe_misura_preview %}
+      <p class="aiuto">Righe {{ proposta.riga_inizio_misure }}–{{ proposta.riga_fine_misure }},
+        colonne: {{ proposta.colonne_misure }}</p>
+      <table>
+        <thead>
+          <tr><th>Riga</th><th>Posizione</th><th>Caratteristica</th><th>Strumento</th></tr>
+        </thead>
+        <tbody>
+          {% for r in proposta.righe_misura_preview %}
+          <tr>
+            <td>{{ r.riga }}</td><td>{{ r.posizione }}</td>
+            <td>{{ r.caratteristica }}</td><td>{{ r.strumento }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="aiuto">Nessuna riga misura rilevata.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Blocco esito</h3>
+    <p class="aiuto">
+      Riga {{ proposta.riga_esito or '—' }},
+      colonna data {{ proposta.colonna_data_esito or '—' }},
+      colonna stato {{ proposta.colonna_stato_esito or '—' }},
+      firma CQ {{ proposta.cella_firma_cq or '—' }}.
+      Per correggere queste celle, ricarica il file dopo averlo sistemato:
+      non sono editabili qui perché guidano il layout dell'intera tabella misure.</p>
+  </div>
+
+  <div class="barra-azioni">
+    <button type="submit">Crea template RIQ</button>
+    <a href="{{ url_for('riq_nuovo') }}" class="chiaro bottone">Annulla</a>
+  </div>
+</form>
+{% endif %}
+
+{% endblock %}

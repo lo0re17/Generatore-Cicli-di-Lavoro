@@ -10,6 +10,7 @@ a mano senza passare dal DB.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -76,6 +77,12 @@ CREATE TABLE IF NOT EXISTS log_generazione (
 CREATE TABLE IF NOT EXISTS progressivo_riq (
     anno TEXT PRIMARY KEY,
     ultimo INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS ultima_compilazione (
+    pn TEXT PRIMARY KEY,
+    dati TEXT NOT NULL,
+    quando TEXT NOT NULL
 );
 """
 
@@ -295,3 +302,22 @@ def imposta_progressivo_riq(anno: str, ultimo: int) -> None:
             INSERT INTO progressivo_riq (anno, ultimo) VALUES (?, ?)
             ON CONFLICT(anno) DO UPDATE SET ultimo = excluded.ultimo
         """, (anno, ultimo))
+
+
+# ---------------------------------------------------------- ultima compilazione
+def salva_ultima_compilazione(pn: str, dati: dict) -> None:
+    """Ricorda i valori dell'ultima generazione per un PN, per proporli
+    come default alla prossima apertura del form (in qualunque sessione)."""
+    with connessione() as conn:
+        conn.execute("""
+            INSERT INTO ultima_compilazione (pn, dati, quando) VALUES (?, ?, ?)
+            ON CONFLICT(pn) DO UPDATE SET dati = excluded.dati, quando = excluded.quando
+        """, (pn, json.dumps(dati, ensure_ascii=False),
+              datetime.now().isoformat(timespec="seconds")))
+
+
+def ultima_compilazione(pn: str) -> dict | None:
+    with connessione() as conn:
+        riga = conn.execute(
+            "SELECT dati FROM ultima_compilazione WHERE pn = ?", (pn,)).fetchone()
+    return json.loads(riga["dati"]) if riga else None

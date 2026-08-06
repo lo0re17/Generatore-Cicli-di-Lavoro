@@ -41,6 +41,7 @@ from motore import fasi as F  # noqa: E402
 from motore import ordine_interno as OI  # noqa: E402
 from motore import riq as RIQ  # noqa: E402
 from motore import rileva_campi as RC  # noqa: E402
+from motore import rileva_riq as RCR  # noqa: E402
 from motore.anagrafica import Anagrafica  # noqa: E402
 
 import db  # noqa: E402
@@ -179,6 +180,8 @@ def dashboard():
               if pn_scelto in templates else None)
 
     valori_salvati = session.get("form_valori", {}).get(pn_scelto, {})
+    if not valori_salvati and pn_scelto:
+        valori_salvati = db.ultima_compilazione(pn_scelto) or {}
 
     fasi_pn = fasi_di(config) if config else []
     operatori = anagrafica_operatori.operatori
@@ -463,6 +466,8 @@ def genera():
             lavoro["pn"], "odl+riq" if lavoro.get("con_riq") else "odl",
             lavoro.get("ordine_interno", ""), lavoro["quantita"],
             [p.name for p in prodotti])
+        dati_form = {k: v for k, v in request.form.items() if k not in ("pn", "fase")}
+        db.salva_ultima_compilazione(lavoro["pn"], dati_form)
         _pulisci_form_sessione(lavoro["pn"])
         return _consegna(prodotti, f"{lavoro['pn']}_documenti.zip")
 
@@ -691,6 +696,7 @@ def _wizard_crea():
         if etichetta:
             campo.etichetta = etichetta
         campo.obbligatorio = bool(request.form.get(f"obbligatorio_{i}"))
+        campo.cella = request.form.get(f"cella_{i}", campo.cella).strip().upper()
 
     def _riesponi(messaggio: str):
         flash(messaggio)
@@ -715,6 +721,85 @@ def _wizard_crea():
                 proposta.descrizione)
 
     flash(f"Template creato per PN '{proposta.pn}'.")
+    return redirect(url_for("pn_elenco"))
+
+
+# --------------------------------------------------------------------------- #
+# Nuovo RIQ — wizard di riconoscimento campi da un RIQ compilato
+# --------------------------------------------------------------------------- #
+@app.route("/riq/nuovo", methods=["GET", "POST"])
+@serve_azione("redige")
+def riq_nuovo():
+    if request.method == "GET":
+        return render_template("nuovo_riq.html", fase="scelta_file")
+
+    fase = request.form.get("fase", "")
+    if fase == "revisione":
+        return _wizard_riq_revisione()
+    if fase == "crea":
+        return _wizard_riq_crea()
+    return redirect(url_for("riq_nuovo"))
+
+
+def _wizard_riq_revisione():
+    caricato = request.files.get("file")
+    if caricato is None or not caricato.filename:
+        flash("Scegli un RIQ compilato da analizzare.")
+        return redirect(url_for("riq_nuovo"))
+
+    CARTELLA_WIZARD.mkdir(parents=True, exist_ok=True)
+    percorso = CARTELLA_WIZARD / ("sorgente_riq" + Path(caricato.filename).suffix)
+    caricato.save(percorso)
+
+    try:
+        proposta = RCR.analizza_riq(percorso)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Impossibile analizzare il file: {e}")
+        return redirect(url_for("riq_nuovo"))
+
+    if not proposta.pn:
+        flash("PN non riconosciuto automaticamente: inseriscilo qui sotto.")
+    return render_template("nuovo_riq.html", fase="revisione",
+                           percorso=str(percorso), proposta=proposta)
+
+
+def _wizard_riq_crea():
+    percorso = Path(request.form.get("percorso", ""))
+    if not percorso.is_file():
+        flash("File analizzato non più disponibile: ricaricalo.")
+        return redirect(url_for("riq_nuovo"))
+
+    proposta = RCR.analizza_riq(percorso)
+    proposta.pn = request.form.get("pn", "").strip() or proposta.pn
+    proposta.descrizione = request.form.get("descrizione", proposta.descrizione)
+
+    for i, campo in enumerate(proposta.campi):
+        campo.incluso = bool(request.form.get(f"incluso_{i}"))
+        campo.fisso = bool(request.form.get(f"fisso_{i}"))
+        etichetta = request.form.get(f"etichetta_{i}", "").strip()
+        if etichetta:
+            campo.etichetta = etichetta
+        campo.obbligatorio = bool(request.form.get(f"obbligatorio_{i}"))
+        campo.cella = request.form.get(f"cella_{i}", campo.cella).strip().upper()
+
+    def _riesponi(messaggio: str):
+        flash(messaggio)
+        return render_template("nuovo_riq.html", fase="revisione",
+                               percorso=str(percorso), proposta=proposta)
+
+    if not proposta.pn:
+        return _riesponi("Il PN è obbligatorio.")
+    if (CARTELLA_TEMPLATES / proposta.pn / "template_riq.xlsx").is_file():
+        return _riesponi(f"Esiste già un template RIQ per il PN '{proposta.pn}'.")
+
+    try:
+        RCR.costruisci_template_riq(proposta, CARTELLA_TEMPLATES)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        return _riesponi(f"Errore nella creazione del template RIQ: {e}")
+
+    flash(f"Template RIQ creato per PN '{proposta.pn}'.")
     return redirect(url_for("pn_elenco"))
 
 

@@ -56,7 +56,11 @@
     <p class="aiuto" style="margin-bottom:10px">
       <strong>Incluso</strong>: entra nel template. <strong>Fisso</strong>: valore
       dal template, non richiesto nel form di generazione (es. Rev. che non
-      cambia per ordine). <strong>Obbligatorio</strong>: richiesto per generare.</p>
+      cambia per ordine). <strong>Obbligatorio</strong>: richiesto per generare.
+      <strong>Cella</strong>: dove viene scritto il token — correggila a mano se
+      il riconoscimento automatico ha sbagliato o non ha trovato nulla
+      (es. per una scadenza non rilevata, indica qui la cella affianco
+      all'etichetta "Scadenza:").</p>
     <table>
       <thead>
         <tr>
@@ -66,6 +70,7 @@
           <th>Etichetta</th>
           <th>Tipo</th>
           <th>Gruppo</th>
+          <th>Cella</th>
           <th>Valore attuale</th>
         </tr>
       </thead>
@@ -78,6 +83,8 @@
           <td><input name="etichetta_{{ loop.index0 }}" value="{{ campo.etichetta }}" style="min-width:200px"></td>
           <td>{{ campo.tipo }}</td>
           <td>{{ campo.gruppo or '—' }}</td>
+          <td><input name="cella_{{ loop.index0 }}" value="{{ campo.cella }}"
+                     placeholder="es. S45" style="width:80px; font-family:monospace"></td>
           <td>{{ campo.valore_attuale or '—' }}</td>
         </tr>
         {% endfor %}
