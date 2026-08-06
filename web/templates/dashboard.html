@@ -72,14 +72,15 @@
 
   {% set ns_lotto = namespace(presente=false) %}
   {% for campo in config.campi %}
-    {% if campo.tipo == 'lotto' %}{% set ns_lotto.presente = true %}{% endif %}
+    {% if campo.tipo == 'lotto' and campo.gruppo == 'Lotti nelle fasi' %}{% set ns_lotto.presente = true %}{% endif %}
   {% endfor %}
   {% if ns_lotto.presente %}
   <div class="card">
     <h3 style="margin-top:0">Materiale e lotto</h3>
     <p class="aiuto" style="margin-bottom:10px">Seleziona un lotto registrato in
-      Configurazioni → Materiali per compilare automaticamente i campi lotto
-      e le eventuali scadenze; puoi comunque correggerli a mano sotto.</p>
+      Configurazioni → Materiali: compila automaticamente i campi lotto e le
+      eventuali scadenze nelle fasi (i lotti di distinta base non vengono
+      toccati); puoi comunque correggerli a mano sotto.</p>
     <select id="sel_lotto_materiale" style="max-width:520px">
       <option value="">— nessuno —</option>
     </select>
@@ -334,7 +335,8 @@
     }
   })();
 
-  // Tendina materiale/lotto: compila i campi lotto e le date "scadenza".
+  // Tendina materiale/lotto: compila SOLO i campi lotto/scadenza rilevati
+  // nelle fasi (non i lotti di distinta base, che restano indipendenti).
   var selLotto = document.getElementById('sel_lotto_materiale');
   if (selLotto) {
     fetch("{{ url_for('api_lotti_materiale') }}")
@@ -351,7 +353,7 @@
     selLotto.addEventListener('change', function () {
       var opt = selLotto.options[selLotto.selectedIndex];
       if (!opt || !opt.value) return;
-      document.querySelectorAll('[data-campo-lotto]').forEach(function (c) {
+      document.querySelectorAll('[data-lotto-gruppo="fase"]').forEach(function (c) {
         c.value = opt.value;
       });
       if (opt.dataset.scadenza) {
