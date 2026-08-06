@@ -106,7 +106,8 @@
         <div class="riga stretta" style="gap:8px; align-items:center">
           <input name="{{ campo.token }}" value="{{ val_corrente }}"
                  data-campo="{{ campo.token }}" style="flex:1"
-                 {% if campo.tipo == 'data' %}data-tipo="data" placeholder="gg/mm/aaaa"{% endif %}
+                 {% if campo.tipo == 'data' %}data-tipo="data"
+                    placeholder="{{ 'gg/mm/aaaa o mm/aaaa' if 'cad' in campo.etichetta|lower else 'gg/mm/aaaa' }}"{% endif %}
                  {% if campo.tipo == 'lotto' %}data-campo-lotto="1"
                     data-lotto-gruppo="{{ 'fase' if campo.gruppo == 'Lotti nelle fasi' else 'distinta' }}"{% endif %}
                  {% if campo.tipo == 'data' and 'cad' in campo.etichetta|lower %}data-campo-scadenza="1"{% endif %}
@@ -361,9 +362,21 @@
     });
   }
 
-  // Autocompletamento "/" durante la digitazione delle date (gg/mm/aa o gg/mm/aaaa).
+  // Autocompletamento "/" durante la digitazione delle date.
+  // Le scadenze accettano anche solo mese/anno (mm/aa o mm/aaaa): dopo il
+  // mese si inserisce un solo "/" e il resto e' libero (2 o 4 cifre),
+  // senza forzare un terzo gruppo giorno che li' non esiste sempre.
   document.querySelectorAll('input[data-tipo="data"]').forEach(function (campo) {
+    var soloMeseAnno = campo.hasAttribute('data-campo-scadenza');
     campo.addEventListener('input', function () {
+      if (soloMeseAnno) {
+        var cifre = campo.value.replace(/[^0-9]/g, '').slice(0, 6);
+        var parti = [];
+        if (cifre.length > 0) parti.push(cifre.slice(0, 2));
+        if (cifre.length > 2) parti.push(cifre.slice(2));
+        campo.value = parti.join('/');
+        return;
+      }
       var cifre = campo.value.replace(/[^0-9]/g, '').slice(0, 8);
       var parti = [];
       if (cifre.length > 0) parti.push(cifre.slice(0, 2));

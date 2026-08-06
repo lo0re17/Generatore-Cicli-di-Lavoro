@@ -111,6 +111,26 @@ class ConfigPN:
 # --------------------------------------------------------------------------- #
 # Conversione dei valori
 # --------------------------------------------------------------------------- #
+_RE_MESE_ANNO = re.compile(r"^\s*(\d{1,2})\s*/\s*(\d{2}|\d{4})\s*$")
+
+
+def _normalizza_mese_anno(valore: Any) -> str | None:
+    """Riconosce una scadenza espressa solo come mese/anno (es. "06/26" o
+    "06/2026", senza giorno) e la normalizza a "MM/AAAA". None se il testo
+    non corrisponde a questo formato (es. e' una data completa gg/mm/aaaa)."""
+    if not isinstance(valore, str):
+        return None
+    m = _RE_MESE_ANNO.match(valore)
+    if not m:
+        return None
+    mese_s, anno_s = m.groups()
+    mese = int(mese_s)
+    if not (1 <= mese <= 12):
+        return None
+    anno = int(anno_s) if len(anno_s) == 4 else 2000 + int(anno_s)
+    return f"{mese:02d}/{anno:04d}"
+
+
 def _parse_data(valore: Any) -> datetime | None:
     """Interpreta una data da vari formati; None se vuota."""
     if valore is None or valore == "":
@@ -138,6 +158,9 @@ def _valore_stringa(campo: Campo, valore: Any) -> str:
     if valore is None:
         return ""
     if campo.tipo == "data":
+        mese_anno = _normalizza_mese_anno(valore)
+        if mese_anno:
+            return mese_anno
         d = _parse_data(valore)
         return d.strftime("%d/%m/%Y") if d else ""
     if campo.tipo == "intero":
@@ -151,6 +174,9 @@ def _valore_tipizzato(campo: Campo, valore: Any) -> Any:
     if isinstance(valore, NonApplicabile):
         return valore.testo
     if campo.tipo == "data":
+        mese_anno = _normalizza_mese_anno(valore)
+        if mese_anno:
+            return mese_anno  # scritto come testo: niente giorno da rappresentare
         return _parse_data(valore)  # datetime o None
     if campo.tipo == "intero":
         testo = str(valore).strip()
@@ -459,6 +485,8 @@ def valida(config: ConfigPN, valori: dict[str, Any]) -> list[str]:
         if vuoto:
             continue
         if c.tipo == "data":
+            if _normalizza_mese_anno(grezzo):
+                continue
             try:
                 _parse_data(grezzo)
             except ValueError as e:
