@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% set attiva = 'configurazioni' %}
+{% block titolo %}Operatori — Configurazioni{% endblock %}
+{% block contenuto %}
+
+<h2>Operatori</h2>
+<p class="aiuto"><a href="{{ url_for('configurazioni') }}">← Configurazioni e DB</a></p>
+
+<div class="card">
+  <details>
+    <summary>Nuovo operatore / modifica esistente</summary>
+    <p class="aiuto">Usa la stessa sigla di un operatore esistente per modificarlo.
+      La firma caricata viene adattata automaticamente alla cella dedicata
+      nel template al momento della generazione.</p>
+    <form method="post" enctype="multipart/form-data" style="margin-top:8px">
+      <input type="hidden" name="azione" value="salva">
+      <div class="riga">
+        <div><label>Sigla *</label><input name="sigla" required style="text-transform:uppercase"></div>
+        <div><label>Nome e cognome</label><input name="nome"></div>
+        <div><label>Matricola</label><input name="matricola"></div>
+        <div><label>Reparto</label><input name="reparto"></div>
+      </div>
+      <div class="riga">
+        <div><label>Firma (.png)</label><input type="file" name="firma" accept=".png"></div>
+        <div><label style="display:flex; align-items:center; gap:6px; margin-top:20px">
+          <input type="checkbox" name="e_cq" style="width:auto"> Abilitato come firmatario CQ (RIQ)
+        </label></div>
+      </div>
+      <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+        <button type="submit">Salva</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+<div class="card" style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr><th>Sigla</th><th>Nome</th><th>Matricola</th><th>Reparto</th><th>Firma</th><th>CQ</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for o in operatori %}
+      <tr>
+        <td>{{ o.sigla }}</td>
+        <td>{{ o.nome or '—' }}</td>
+        <td>{{ o.matricola or '—' }}</td>
+        <td>{{ o.reparto or '—' }}</td>
+        <td>{% if o.firma %}<span class="badge ok">sì</span>{% else %}<span class="badge neutro">no</span>{% endif %}</td>
+        <td>{% if o.e_cq %}<span class="badge ok">sì</span>{% else %}<span class="badge neutro">no</span>{% endif %}</td>
+        <td style="width:1%">
+          <form method="post" onsubmit="return confirm('Rimuovere {{ o.sigla }}?')">
+            <input type="hidden" name="azione" value="elimina">
+            <input type="hidden" name="sigla" value="{{ o.sigla }}">
+            <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

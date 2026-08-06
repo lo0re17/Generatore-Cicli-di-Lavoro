@@ -70,7 +70,9 @@
       <a href="{{ url_for('importa_anagrafica') }}" {% if attiva == 'importa' %}class="attivo"{% endif %}>Importa</a>
     {% endif %}
     <a href="{{ url_for('storico') }}" {% if attiva == 'storico' %}class="attivo"{% endif %}>Storico</a>
-    {% if puo_redigere %}
+    {% if puo_amministrare %}
+      <a href="{{ url_for('configurazioni') }}" {% if attiva == 'configurazioni' %}class="attivo"{% endif %}>Configurazioni</a>
+    {% elif puo_redigere %}
       <a href="{{ url_for('backup_database') }}">Backup</a>
     {% endif %}
   </nav>

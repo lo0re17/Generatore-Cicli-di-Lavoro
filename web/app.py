@@ -25,7 +25,7 @@ from pathlib import Path
 
 from flask import (Flask, after_this_request, flash, redirect,
                     render_template, request, send_file, session, url_for)
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
 BASE = Path(__file__).resolve().parent
 PROGETTO = BASE.parent
@@ -42,7 +42,7 @@ from motore import ordine_interno as OI  # noqa: E402
 from motore import riq as RIQ  # noqa: E402
 from motore import rileva_campi as RC  # noqa: E402
 from motore import rileva_riq as RCR  # noqa: E402
-from motore.anagrafica import Anagrafica  # noqa: E402
+from motore.anagrafica import Anagrafica, Operatore  # noqa: E402
 
 import db  # noqa: E402
 import importa  # noqa: E402
@@ -126,8 +126,24 @@ def variabili_comuni():
         "puo_redigere": permessi.puo(ruolo, "redige"),
         "puo_compilare": permessi.puo(ruolo, "compila"),
         "puo_revisionare": permessi.puo(ruolo, "revisiona"),
+        "puo_amministrare": permessi.puo(ruolo, "amministra"),
         "etichetta_ruolo": permessi.ETICHETTE_RUOLO.get(ruolo, ruolo),
     }
+
+
+def registra_azione(azione: str, dettaglio: str = "") -> None:
+    db.registra_operazione(session.get("username", ""), azione, dettaglio)
+
+
+@app.errorhandler(Exception)
+def gestisci_errore_non_previsto(e):
+    from werkzeug.exceptions import HTTPException
+    if isinstance(e, HTTPException):
+        return e
+    dettaglio = traceback.format_exc()
+    traceback.print_exc()
+    db.registra_errore(session.get("username", ""), request.path, str(e), dettaglio)
+    return render_template("errore.html", messaggio=str(e)), 500
 
 
 # --------------------------------------------------------------------------- #
@@ -458,6 +474,8 @@ def genera():
             prodotti = _esegui_lavoro(lavoro, Path(tmp))
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
+            db.registra_errore(session.get("username", ""), request.path,
+                               str(e), traceback.format_exc())
             flash(f"Errore in generazione: {e}")
             return redirect(url_for("dashboard", pn=lavoro["pn"]))
 
@@ -521,6 +539,8 @@ def coda_genera():
                 prodotti += _esegui_lavoro(lavoro, Path(tmp))
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
+            db.registra_errore(session.get("username", ""), request.path,
+                               str(e), traceback.format_exc())
             flash(f"Errore in generazione: {e}")
             return redirect(url_for("dashboard"))
 
@@ -713,6 +733,8 @@ def _wizard_crea():
         RC.costruisci_template(proposta, CARTELLA_TEMPLATES)
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
+        db.registra_errore(session.get("username", ""), request.path,
+                           str(e), traceback.format_exc())
         return _riesponi(f"Errore nella creazione del template: {e}")
 
     cliente_scelto = request.form.get("cliente_id", "")
@@ -720,6 +742,7 @@ def _wizard_crea():
                 int(cliente_scelto) if cliente_scelto.isdigit() else None,
                 proposta.descrizione)
 
+    registra_azione("crea_template_odl", proposta.pn)
     flash(f"Template creato per PN '{proposta.pn}'.")
     return redirect(url_for("pn_elenco"))
 
@@ -797,8 +820,11 @@ def _wizard_riq_crea():
         RCR.costruisci_template_riq(proposta, CARTELLA_TEMPLATES)
     except Exception as e:  # noqa: BLE001
         traceback.print_exc()
+        db.registra_errore(session.get("username", ""), request.path,
+                           str(e), traceback.format_exc())
         return _riesponi(f"Errore nella creazione del template RIQ: {e}")
 
+    registra_azione("crea_template_riq", proposta.pn)
     flash(f"Template RIQ creato per PN '{proposta.pn}'.")
     return redirect(url_for("pn_elenco"))
 
@@ -826,6 +852,150 @@ def backup_database():
         return response
 
     return send_file(percorso_tmp, as_attachment=True, download_name=nome)
+
+
+# --------------------------------------------------------------------------- #
+# Configurazioni e DB (solo admin)
+# --------------------------------------------------------------------------- #
+@app.route("/configurazioni")
+@serve_azione("amministra")
+def configurazioni():
+    return render_template("configurazioni.html")
+
+
+@app.route("/configurazioni/utenti", methods=["GET", "POST"])
+@serve_azione("amministra")
+def configurazioni_utenti():
+    if request.method == "POST":
+        azione = request.form.get("azione", "")
+
+        if azione == "crea":
+            username = request.form.get("username", "").strip().lower()
+            password = request.form.get("password", "").strip()
+            nome = request.form.get("nome_visualizzato", "").strip()
+            ruolo = request.form.get("ruolo", "")
+            if not username or not password or ruolo not in db.RUOLI_VALIDI:
+                flash("Utente, password e ruolo sono obbligatori.")
+            elif db.trova_utente(username):
+                flash(f"Esiste già un utente '{username}'.")
+            else:
+                db.crea_utente(username, generate_password_hash(password), nome, ruolo)
+                registra_azione("crea_utente", username)
+                flash(f"Utente '{username}' creato.")
+
+        elif azione == "reset_password":
+            utente_id = int(request.form.get("utente_id", 0) or 0)
+            password = request.form.get("password", "").strip()
+            if not password:
+                flash("Indica la nuova password.")
+            else:
+                db.aggiorna_password_utente(utente_id, generate_password_hash(password))
+                registra_azione("reset_password", f"utente_id={utente_id}")
+                flash("Password aggiornata.")
+
+        elif azione == "elimina":
+            utente_id = int(request.form.get("utente_id", 0) or 0)
+            if utente_id == session.get("utente_id"):
+                flash("Non puoi eliminare il tuo stesso account.")
+            else:
+                db.elimina_utente(utente_id)
+                registra_azione("elimina_utente", f"utente_id={utente_id}")
+                flash("Utente eliminato.")
+
+        return redirect(url_for("configurazioni_utenti"))
+
+    return render_template("configurazioni_utenti.html", utenti=db.utenti(),
+                           ruoli=db.RUOLI_VALIDI, etichette_ruolo=permessi.ETICHETTE_RUOLO)
+
+
+@app.route("/configurazioni/operatori", methods=["GET", "POST"])
+@serve_azione("amministra")
+def configurazioni_operatori():
+    if request.method == "POST":
+        azione = request.form.get("azione", "")
+
+        if azione == "salva":
+            sigla = request.form.get("sigla", "").strip().upper()
+            if not sigla:
+                flash("La sigla è obbligatoria.")
+                return redirect(url_for("configurazioni_operatori"))
+
+            esistente = anagrafica_operatori.operatore(sigla)
+            op = Operatore(
+                sigla=sigla,
+                nome=request.form.get("nome", "").strip(),
+                reparto=request.form.get("reparto", "").strip(),
+                matricola=request.form.get("matricola", "").strip(),
+                e_cq=bool(request.form.get("e_cq")),
+                firma=esistente.firma if esistente else "",
+                firma_cq=esistente.firma_cq if esistente else "",
+            )
+            file_firma = request.files.get("firma")
+            if file_firma and file_firma.filename:
+                cartella_firme = CARTELLA_ANAGRAFICA / "firme"
+                cartella_firme.mkdir(parents=True, exist_ok=True)
+                nome_file = f"{sigla}.png"
+                file_firma.save(cartella_firme / nome_file)
+                op.firma = f"firme/{nome_file}"
+
+            anagrafica_operatori.aggiungi_o_aggiorna(op)
+            anagrafica_operatori.salva()
+            registra_azione("salva_operatore", sigla)
+            flash(f"Operatore '{sigla}' salvato.")
+
+        elif azione == "elimina":
+            sigla = request.form.get("sigla", "")
+            anagrafica_operatori.rimuovi(sigla)
+            anagrafica_operatori.salva()
+            registra_azione("elimina_operatore", sigla)
+            flash(f"Operatore '{sigla}' rimosso.")
+
+        return redirect(url_for("configurazioni_operatori"))
+
+    return render_template("configurazioni_operatori.html",
+                           operatori=anagrafica_operatori.operatori)
+
+
+@app.route("/configurazioni/fornitori", methods=["GET", "POST"])
+@serve_azione("amministra")
+def configurazioni_fornitori():
+    if request.method == "POST":
+        azione = request.form.get("azione", "")
+
+        if azione == "crea":
+            nome = request.form.get("nome", "").strip()
+            if not nome:
+                flash("Il nome è obbligatorio.")
+            else:
+                db.crea_fornitore(nome, request.form.get("contatti", ""),
+                                  request.form.get("note", ""))
+                registra_azione("crea_fornitore", nome)
+                flash(f"Fornitore '{nome}' creato.")
+
+        elif azione == "modifica":
+            fornitore_id = int(request.form.get("fornitore_id", 0) or 0)
+            nome = request.form.get("nome", "").strip()
+            db.aggiorna_fornitore(fornitore_id, nome, request.form.get("contatti", ""),
+                                  request.form.get("note", ""))
+            registra_azione("modifica_fornitore", nome)
+            flash("Fornitore aggiornato.")
+
+        elif azione == "elimina":
+            fornitore_id = int(request.form.get("fornitore_id", 0) or 0)
+            db.elimina_fornitore(fornitore_id)
+            registra_azione("elimina_fornitore", f"id={fornitore_id}")
+            flash("Fornitore eliminato.")
+
+        return redirect(url_for("configurazioni_fornitori"))
+
+    return render_template("configurazioni_fornitori.html", fornitori=db.fornitori())
+
+
+@app.route("/configurazioni/log")
+@serve_azione("amministra")
+def configurazioni_log():
+    return render_template("configurazioni_log.html",
+                           operazioni=db.log_operazioni(), errori=db.log_errori())
 
 
 # --------------------------------------------------------------------------- #

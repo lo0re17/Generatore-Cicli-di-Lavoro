@@ -19,6 +19,7 @@ class Operatore:
     sigla: str
     nome: str
     reparto: str = ""
+    matricola: str = ""
     firma: str = ""            # percorso relativo alla cartella anagrafica
     e_cq: bool = False         # abilitato come firmatario Controllo Qualita' (RIQ)
     firma_cq: str = ""         # percorso firma CQ (puo' differire dalla firma standard)

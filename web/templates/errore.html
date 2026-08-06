@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titolo %}Errore — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Si è verificato un errore</h2>
+<div class="card">
+  <p>{{ messaggio }}</p>
+  <p class="aiuto">L'errore è stato registrato nel log (Configurazioni → Log,
+    per chi ha accesso).</p>
+  <a href="{{ url_for('dashboard') }}" class="bottone">Torna alla dashboard</a>
+</div>
+
+{% endblock %}

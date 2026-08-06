@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% set attiva = 'configurazioni' %}
+{% block titolo %}Utenti — Configurazioni{% endblock %}
+{% block contenuto %}
+
+<h2>Utenti</h2>
+<p class="aiuto"><a href="{{ url_for('configurazioni') }}">← Configurazioni e DB</a></p>
+
+<div class="card">
+  <details>
+    <summary>Crea utente</summary>
+    <form method="post" style="margin-top:8px">
+      <input type="hidden" name="azione" value="crea">
+      <div class="riga">
+        <div><label>Utente *</label><input name="username" required></div>
+        <div><label>Nome visualizzato</label><input name="nome_visualizzato"></div>
+        <div><label>Password *</label><input type="password" name="password" required></div>
+        <div><label>Ruolo *</label>
+          <select name="ruolo" required>
+            {% for r in ruoli %}
+              <option value="{{ r }}">{{ etichette_ruolo.get(r, r) }}</option>
+            {% endfor %}
+          </select></div>
+      </div>
+      <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+        <button type="submit">Crea</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+<div class="card" style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr><th>Utente</th><th>Nome</th><th>Ruolo</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for u in utenti %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.nome_visualizzato or '—' }}</td>
+        <td>{{ etichette_ruolo.get(u.ruolo, u.ruolo) }}</td>
+        <td style="width:1%; white-space:nowrap">
+          <details style="display:inline-block">
+            <summary class="piccolo">Reset password</summary>
+            <form method="post" style="margin-top:6px">
+              <input type="hidden" name="azione" value="reset_password">
+              <input type="hidden" name="utente_id" value="{{ u.id }}">
+              <input type="password" name="password" placeholder="Nuova password" required style="width:160px">
+              <button type="submit" class="piccolo">Salva</button>
+            </form>
+          </details>
+          <form method="post" style="display:inline" onsubmit="return confirm('Eliminare {{ u.username }}?')">
+            <input type="hidden" name="azione" value="elimina">
+            <input type="hidden" name="utente_id" value="{{ u.id }}">
+            <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

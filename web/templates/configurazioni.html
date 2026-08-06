@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% set attiva = 'configurazioni' %}
+{% block titolo %}Configurazioni e DB — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Configurazioni e DB</h2>
+
+<div class="card">
+  <div class="riga">
+    <a href="{{ url_for('configurazioni_utenti') }}" class="bottone">Utenti</a>
+    <a href="{{ url_for('configurazioni_operatori') }}" class="bottone">Operatori</a>
+    <a href="{{ url_for('configurazioni_fornitori') }}" class="bottone">Fornitori</a>
+    <a href="{{ url_for('clienti') }}" class="bottone">Clienti</a>
+    <a href="{{ url_for('backup_database') }}" class="bottone">Backup DB</a>
+    <a href="{{ url_for('configurazioni_log') }}" class="bottone">Log</a>
+  </div>
+</div>
+
+<div class="card">
+  <p class="aiuto">Ripristino (load) del DB e backup/load delle impostazioni
+    non sono ancora disponibili qui — rimandati a un aggiornamento successivo
+    perché sono operazioni distruttive da progettare con cautela (conferma
+    esplicita, verifica dello schema prima di sovrascrivere).</p>
+</div>
+
+{% endblock %}

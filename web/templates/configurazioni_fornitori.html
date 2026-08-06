@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% set attiva = 'configurazioni' %}
+{% block titolo %}Fornitori — Configurazioni{% endblock %}
+{% block contenuto %}
+
+<h2>Fornitori</h2>
+<p class="aiuto"><a href="{{ url_for('configurazioni') }}">← Configurazioni e DB</a></p>
+
+<div class="card">
+  <details>
+    <summary>Aggiungi fornitore</summary>
+    <form method="post" style="margin-top:8px">
+      <input type="hidden" name="azione" value="crea">
+      <div class="riga">
+        <div><label>Nome *</label><input name="nome" required></div>
+        <div><label>Contatti</label><input name="contatti"></div>
+        <div><label>Note</label><input name="note"></div>
+      </div>
+      <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+        <button type="submit">Salva</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+<div class="card" style="overflow-x:auto">
+  <table>
+    <thead><tr><th>Nome</th><th>Contatti</th><th>Note</th><th></th></tr></thead>
+    <tbody>
+      {% for f in fornitori %}
+      <tr>
+        <td>
+          <details>
+            <summary>{{ f.nome }}</summary>
+            <form method="post" style="margin-top:6px">
+              <input type="hidden" name="azione" value="modifica">
+              <input type="hidden" name="fornitore_id" value="{{ f.id }}">
+              <div class="riga">
+                <div><label>Nome</label><input name="nome" value="{{ f.nome }}"></div>
+                <div><label>Contatti</label><input name="contatti" value="{{ f.contatti }}"></div>
+                <div><label>Note</label><input name="note" value="{{ f.note }}"></div>
+              </div>
+              <div class="barra-azioni" style="margin-top:6px; margin-bottom:0">
+                <button type="submit" class="piccolo">Salva</button>
+              </div>
+            </form>
+          </details>
+        </td>
+        <td>{{ f.contatti or '—' }}</td>
+        <td>{{ f.note or '—' }}</td>
+        <td style="width:1%">
+          <form method="post" onsubmit="return confirm('Eliminare {{ f.nome }}?')">
+            <input type="hidden" name="azione" value="elimina">
+            <input type="hidden" name="fornitore_id" value="{{ f.id }}">
+            <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

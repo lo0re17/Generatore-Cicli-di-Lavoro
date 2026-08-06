@@ -17,7 +17,7 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent / "instance" / "database.db"
 
-RUOLI_VALIDI = ("ufficio_tecnico", "qualita", "magazzino_produzione")
+RUOLI_VALIDI = ("ufficio_tecnico", "qualita", "magazzino_produzione", "admin")
 TIPI_DOCUMENTO = ("odl", "riq", "cqc")
 
 
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS utente (
     password_hash TEXT NOT NULL,
     nome_visualizzato TEXT NOT NULL DEFAULT '',
     ruolo TEXT NOT NULL CHECK (ruolo IN
-        ('ufficio_tecnico', 'qualita', 'magazzino_produzione'))
+        ('ufficio_tecnico', 'qualita', 'magazzino_produzione', 'admin'))
 );
 
 CREATE TABLE IF NOT EXISTS cliente (
@@ -84,6 +84,30 @@ CREATE TABLE IF NOT EXISTS ultima_compilazione (
     dati TEXT NOT NULL,
     quando TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS fornitore (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL UNIQUE,
+    contatti TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS log_operazione (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quando TEXT NOT NULL,
+    username TEXT NOT NULL DEFAULT '',
+    azione TEXT NOT NULL,
+    dettaglio TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS log_errore (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quando TEXT NOT NULL,
+    username TEXT NOT NULL DEFAULT '',
+    percorso TEXT NOT NULL DEFAULT '',
+    messaggio TEXT NOT NULL DEFAULT '',
+    dettaglio TEXT NOT NULL DEFAULT ''
+);
 """
 
 CONTROLLI_INIZIALI = [
@@ -100,15 +124,49 @@ CONTROLLI_INIZIALI = [
 ]
 
 
+def _migra_ruolo_admin(conn: sqlite3.Connection) -> None:
+    """Su DB creati prima del ruolo 'admin' il CHECK della tabella utente
+    non lo ammette: ricostruisce la tabella con lo schema aggiornato."""
+    riga = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='utente'"
+    ).fetchone()
+    if riga and "'admin'" in (riga["sql"] or ""):
+        return
+    conn.executescript("""
+        ALTER TABLE utente RENAME TO utente_vecchia;
+        CREATE TABLE utente (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            nome_visualizzato TEXT NOT NULL DEFAULT '',
+            ruolo TEXT NOT NULL CHECK (ruolo IN
+                ('ufficio_tecnico', 'qualita', 'magazzino_produzione', 'admin'))
+        );
+        INSERT INTO utente SELECT * FROM utente_vecchia;
+        DROP TABLE utente_vecchia;
+    """)
+
+
 def inizializza() -> None:
     with connessione() as conn:
         conn.executescript(SCHEMA)
+        _migra_ruolo_admin(conn)
+
         gia_presenti = conn.execute(
             "SELECT COUNT(*) AS n FROM catalogo_controlli").fetchone()["n"]
         if not gia_presenti:
             conn.executemany(
                 "INSERT INTO catalogo_controlli (nome, categoria) VALUES (?, ?)",
                 CONTROLLI_INIZIALI)
+
+        admin = conn.execute(
+            "SELECT id FROM utente WHERE username = 'admin'").fetchone()
+        if not admin:
+            from werkzeug.security import generate_password_hash
+            conn.execute(
+                "INSERT INTO utente (username, password_hash, nome_visualizzato, ruolo) "
+                "VALUES (?, ?, ?, ?)",
+                ("admin", generate_password_hash("admin26"), "Amministratore", "admin"))
 
 
 # --------------------------------------------------------------------- utenti
@@ -127,6 +185,30 @@ def crea_utente(username: str, password_hash: str, nome_visualizzato: str,
             "INSERT INTO utente (username, password_hash, nome_visualizzato, ruolo) "
             "VALUES (?, ?, ?, ?)",
             (username, password_hash, nome_visualizzato, ruolo))
+
+
+def utenti() -> list[sqlite3.Row]:
+    with connessione() as conn:
+        return conn.execute(
+            "SELECT id, username, nome_visualizzato, ruolo FROM utente "
+            "ORDER BY username").fetchall()
+
+
+def utente_per_id(utente_id: int) -> sqlite3.Row | None:
+    with connessione() as conn:
+        return conn.execute(
+            "SELECT * FROM utente WHERE id = ?", (utente_id,)).fetchone()
+
+
+def aggiorna_password_utente(utente_id: int, password_hash: str) -> None:
+    with connessione() as conn:
+        conn.execute("UPDATE utente SET password_hash = ? WHERE id = ?",
+                     (password_hash, utente_id))
+
+
+def elimina_utente(utente_id: int) -> None:
+    with connessione() as conn:
+        conn.execute("DELETE FROM utente WHERE id = ?", (utente_id,))
 
 
 # -------------------------------------------------------------------- clienti
@@ -321,3 +403,61 @@ def ultima_compilazione(pn: str) -> dict | None:
         riga = conn.execute(
             "SELECT dati FROM ultima_compilazione WHERE pn = ?", (pn,)).fetchone()
     return json.loads(riga["dati"]) if riga else None
+
+
+# ------------------------------------------------------------------ fornitori
+def fornitori() -> list[sqlite3.Row]:
+    with connessione() as conn:
+        return conn.execute("SELECT * FROM fornitore ORDER BY nome").fetchall()
+
+
+def crea_fornitore(nome: str, contatti: str = "", note: str = "") -> int:
+    with connessione() as conn:
+        cur = conn.execute(
+            "INSERT INTO fornitore (nome, contatti, note) VALUES (?, ?, ?)",
+            (nome.strip(), contatti, note))
+        return int(cur.lastrowid)
+
+
+def aggiorna_fornitore(fornitore_id: int, nome: str, contatti: str, note: str) -> None:
+    with connessione() as conn:
+        conn.execute(
+            "UPDATE fornitore SET nome = ?, contatti = ?, note = ? WHERE id = ?",
+            (nome.strip(), contatti, note, fornitore_id))
+
+
+def elimina_fornitore(fornitore_id: int) -> None:
+    with connessione() as conn:
+        conn.execute("DELETE FROM fornitore WHERE id = ?", (fornitore_id,))
+
+
+# --------------------------------------------------------------------- log
+def registra_operazione(username: str, azione: str, dettaglio: str = "") -> None:
+    with connessione() as conn:
+        conn.execute(
+            "INSERT INTO log_operazione (quando, username, azione, dettaglio) "
+            "VALUES (?, ?, ?, ?)",
+            (datetime.now().isoformat(timespec="seconds"), username, azione, dettaglio))
+
+
+def log_operazioni(limite: int = 200) -> list[sqlite3.Row]:
+    with connessione() as conn:
+        return conn.execute(
+            "SELECT * FROM log_operazione ORDER BY id DESC LIMIT ?",
+            (limite,)).fetchall()
+
+
+def registra_errore(username: str, percorso: str, messaggio: str, dettaglio: str = "") -> None:
+    with connessione() as conn:
+        conn.execute(
+            "INSERT INTO log_errore (quando, username, percorso, messaggio, dettaglio) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (datetime.now().isoformat(timespec="seconds"), username, percorso,
+             messaggio, dettaglio))
+
+
+def log_errori(limite: int = 200) -> list[sqlite3.Row]:
+    with connessione() as conn:
+        return conn.execute(
+            "SELECT * FROM log_errore ORDER BY id DESC LIMIT ?",
+            (limite,)).fetchall()

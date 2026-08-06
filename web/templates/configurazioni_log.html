@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% set attiva = 'configurazioni' %}
+{% block titolo %}Log — Configurazioni{% endblock %}
+{% block contenuto %}
+
+<h2>Log operazioni ed errori</h2>
+<p class="aiuto"><a href="{{ url_for('configurazioni') }}">← Configurazioni e DB</a></p>
+
+<div class="card" style="overflow-x:auto">
+  <h3 style="margin-top:0">Operazioni ({{ operazioni|length }})</h3>
+  {% if operazioni %}
+  <table>
+    <thead><tr><th>Quando</th><th>Utente</th><th>Azione</th><th>Dettaglio</th></tr></thead>
+    <tbody>
+      {% for r in operazioni %}
+      <tr>
+        <td>{{ r.quando }}</td><td>{{ r.username }}</td>
+        <td>{{ r.azione }}</td><td>{{ r.dettaglio }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vuoto">Nessuna operazione registrata.</p>
+  {% endif %}
+</div>
+
+<div class="card" style="overflow-x:auto">
+  <h3 style="margin-top:0">Errori ({{ errori|length }})</h3>
+  {% if errori %}
+  <table>
+    <thead><tr><th>Quando</th><th>Utente</th><th>Percorso</th><th>Messaggio</th></tr></thead>
+    <tbody>
+      {% for r in errori %}
+      <tr>
+        <td>{{ r.quando }}</td><td>{{ r.username }}</td>
+        <td>{{ r.percorso }}</td>
+        <td><details><summary>{{ r.messaggio }}</summary>
+          <pre style="white-space:pre-wrap; font-size:11px">{{ r.dettaglio }}</pre></details></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vuoto">Nessun errore registrato.</p>
+  {% endif %}
+</div>
+
+{% endblock %}
