@@ -1028,6 +1028,77 @@ def configurazioni_fornitori():
     return render_template("configurazioni_fornitori.html", fornitori=db.fornitori())
 
 
+@app.route("/configurazioni/materiali", methods=["GET", "POST"])
+@serve_azione("amministra")
+def configurazioni_materiali():
+    if request.method == "POST":
+        azione = request.form.get("azione", "")
+
+        if azione == "crea_categoria":
+            nome = request.form.get("nome_categoria", "").strip()
+            if nome:
+                db.crea_categoria_materiale(nome)
+                registra_azione("crea_categoria_materiale", nome)
+                flash(f"Categoria '{nome}' creata.")
+
+        elif azione == "elimina_categoria":
+            db.elimina_categoria_materiale(int(request.form.get("categoria_id", 0) or 0))
+            flash("Categoria eliminata.")
+
+        elif azione == "crea_materiale":
+            fornitore_id = int(request.form.get("fornitore_id", 0) or 0)
+            nome = request.form.get("nome_materiale", "").strip()
+            categoria_id = request.form.get("categoria_id", "")
+            if not fornitore_id or not nome:
+                flash("Fornitore e nome materiale sono obbligatori.")
+            else:
+                db.crea_materiale(fornitore_id,
+                                  int(categoria_id) if categoria_id.isdigit() else None,
+                                  nome, request.form.get("note_materiale", ""))
+                registra_azione("crea_materiale", nome)
+                flash(f"Materiale '{nome}' creato.")
+
+        elif azione == "elimina_materiale":
+            db.elimina_materiale(int(request.form.get("materiale_id", 0) or 0))
+            flash("Materiale eliminato (con i relativi lotti).")
+
+        elif azione == "crea_lotto":
+            materiale_id = int(request.form.get("materiale_id", 0) or 0)
+            lotto = request.form.get("lotto", "").strip()
+            if not materiale_id or not lotto:
+                flash("Materiale e numero di lotto sono obbligatori.")
+            else:
+                db.crea_lotto_materiale(materiale_id, lotto,
+                                        request.form.get("scadenza", ""),
+                                        request.form.get("note_lotto", ""))
+                registra_azione("crea_lotto_materiale", lotto)
+                flash(f"Lotto '{lotto}' registrato.")
+
+        elif azione == "elimina_lotto":
+            db.elimina_lotto_materiale(int(request.form.get("lotto_id", 0) or 0))
+            flash("Lotto eliminato.")
+
+        return redirect(url_for("configurazioni_materiali"))
+
+    return render_template("configurazioni_materiali.html",
+                           fornitori=db.fornitori(), categorie=db.categorie_materiale(),
+                           materiali=db.materiali(), lotti=db.lotti_materiale())
+
+
+@app.route("/api/lotti-materiale")
+@login_richiesto
+def api_lotti_materiale():
+    """Elenco materiali/lotti per la tendina nel form di generazione."""
+    righe = db.lotti_materiale()
+    dati = [{
+        "id": r["id"], "lotto": r["lotto"], "scadenza": r["scadenza"],
+        "materiale": r["materiale_nome"], "fornitore": r["fornitore_nome"],
+        "etichetta": f"{r['materiale_nome']} — lotto {r['lotto']} "
+                     f"({r['fornitore_nome']}){' — scad. ' + r['scadenza'] if r['scadenza'] else ''}",
+    } for r in righe]
+    return {"lotti": dati}
+
+
 @app.route("/configurazioni/log")
 @serve_azione("amministra")
 def configurazioni_log():

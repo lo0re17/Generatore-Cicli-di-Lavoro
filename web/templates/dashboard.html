@@ -70,6 +70,22 @@
 <form method="post" id="form-genera">
   <input type="hidden" name="pn" value="{{ pn_scelto }}">
 
+  {% set ns_lotto = namespace(presente=false) %}
+  {% for campo in config.campi %}
+    {% if campo.tipo == 'lotto' %}{% set ns_lotto.presente = true %}{% endif %}
+  {% endfor %}
+  {% if ns_lotto.presente %}
+  <div class="card">
+    <h3 style="margin-top:0">Materiale e lotto</h3>
+    <p class="aiuto" style="margin-bottom:10px">Seleziona un lotto registrato in
+      Configurazioni → Materiali per compilare automaticamente i campi lotto
+      e le eventuali scadenze; puoi comunque correggerli a mano sotto.</p>
+    <select id="sel_lotto_materiale" style="max-width:520px">
+      <option value="">— nessuno —</option>
+    </select>
+  </div>
+  {% endif %}
+
   <div class="card">
     <h3 style="margin-top:0">Dati variabili</h3>
     <p class="aiuto" style="margin-bottom:10px">
@@ -91,6 +107,8 @@
           <input name="{{ campo.token }}" value="{{ val_corrente }}"
                  data-campo="{{ campo.token }}" style="flex:1"
                  {% if campo.tipo == 'data' %}data-tipo="data" placeholder="gg/mm/aaaa"{% endif %}
+                 {% if campo.tipo == 'lotto' %}data-campo-lotto="1"{% endif %}
+                 {% if campo.tipo == 'data' and 'cad' in campo.etichetta|lower %}data-campo-scadenza="1"{% endif %}
                  {% if na_attivo %}disabled{% endif %}>
           <input type="checkbox" name="na__{{ campo.token }}" id="na_{{ loop.index }}"
                  onchange="toggleNA(this, '{{ campo.token }}')"
@@ -299,6 +317,34 @@
   function toggleNA(chk, token) {
     document.querySelector(`[data-campo="${CSS.escape(token)}"]`).disabled = chk.checked;
     document.querySelector(`[data-na-testo="${CSS.escape(token)}"]`).hidden = !chk.checked;
+  }
+
+  // Tendina materiale/lotto: compila i campi lotto e le date "scadenza".
+  var selLotto = document.getElementById('sel_lotto_materiale');
+  if (selLotto) {
+    fetch("{{ url_for('api_lotti_materiale') }}")
+      .then(function (r) { return r.json(); })
+      .then(function (dati) {
+        (dati.lotti || []).forEach(function (l) {
+          var opt = document.createElement('option');
+          opt.value = l.lotto;
+          opt.dataset.scadenza = l.scadenza || '';
+          opt.textContent = l.etichetta;
+          selLotto.appendChild(opt);
+        });
+      });
+    selLotto.addEventListener('change', function () {
+      var opt = selLotto.options[selLotto.selectedIndex];
+      if (!opt || !opt.value) return;
+      document.querySelectorAll('[data-campo-lotto]').forEach(function (c) {
+        c.value = opt.value;
+      });
+      if (opt.dataset.scadenza) {
+        document.querySelectorAll('[data-campo-scadenza]').forEach(function (c) {
+          c.value = opt.dataset.scadenza;
+        });
+      }
+    });
   }
 
   // Autocompletamento "/" durante la digitazione delle date (gg/mm/aa o gg/mm/aaaa).

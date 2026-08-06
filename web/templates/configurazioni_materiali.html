@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% set attiva = 'configurazioni' %}
+{% block titolo %}Materiali e lotti — Configurazioni{% endblock %}
+{% block contenuto %}
+
+<h2>Materiali e lotti (per fornitore)</h2>
+<p class="aiuto"><a href="{{ url_for('configurazioni') }}">← Configurazioni e DB</a></p>
+
+<div class="card">
+  <details>
+    <summary>Categorie materiale</summary>
+    <form method="post" style="margin-top:8px">
+      <input type="hidden" name="azione" value="crea_categoria">
+      <div class="riga stretta">
+        <div><label>Nome categoria *</label><input name="nome_categoria" required></div>
+        <div style="flex:0"><button type="submit">Aggiungi</button></div>
+      </div>
+    </form>
+    <table style="margin-top:10px">
+      <tbody>
+        {% for c in categorie %}
+        <tr>
+          <td>{{ c.nome }}</td>
+          <td style="width:1%">
+            <form method="post" onsubmit="return confirm('Eliminare {{ c.nome }}?')">
+              <input type="hidden" name="azione" value="elimina_categoria">
+              <input type="hidden" name="categoria_id" value="{{ c.id }}">
+              <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+</div>
+
+<div class="card">
+  <details open>
+    <summary>Aggiungi materiale</summary>
+    <form method="post" style="margin-top:8px">
+      <input type="hidden" name="azione" value="crea_materiale">
+      <div class="riga">
+        <div><label>Fornitore *</label>
+          <select name="fornitore_id" required>
+            <option value="">— scegli —</option>
+            {% for f in fornitori %}<option value="{{ f.id }}">{{ f.nome }}</option>{% endfor %}
+          </select></div>
+        <div><label>Categoria</label>
+          <select name="categoria_id">
+            <option value="">— nessuna —</option>
+            {% for c in categorie %}<option value="{{ c.id }}">{{ c.nome }}</option>{% endfor %}
+          </select></div>
+        <div><label>Nome materiale *</label><input name="nome_materiale" required></div>
+        <div><label>Note</label><input name="note_materiale"></div>
+      </div>
+      <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+        <button type="submit">Salva materiale</button>
+      </div>
+    </form>
+  </details>
+</div>
+
+<div class="card" style="overflow-x:auto">
+  <h3 style="margin-top:0">Materiali per fornitore</h3>
+  {% if materiali %}
+  <table>
+    <thead><tr><th>Fornitore</th><th>Materiale</th><th>Categoria</th><th>Lotti</th><th></th></tr></thead>
+    <tbody>
+      {% for m in materiali %}
+      <tr>
+        <td>{{ m.fornitore_nome }}</td>
+        <td>
+          <details>
+            <summary>{{ m.nome }}</summary>
+            <div class="aiuto" style="margin:6px 0">{{ m.note or '' }}</div>
+            <table style="font-size:12px">
+              <thead><tr><th>Lotto</th><th>Scadenza</th><th>Note</th><th></th></tr></thead>
+              <tbody>
+                {% for l in lotti if l.materiale_id == m.id %}
+                <tr>
+                  <td>{{ l.lotto }}</td><td>{{ l.scadenza or '—' }}</td><td>{{ l.note or '—' }}</td>
+                  <td>
+                    <form method="post" onsubmit="return confirm('Eliminare il lotto {{ l.lotto }}?')">
+                      <input type="hidden" name="azione" value="elimina_lotto">
+                      <input type="hidden" name="lotto_id" value="{{ l.id }}">
+                      <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+            <form method="post" style="margin-top:8px">
+              <input type="hidden" name="azione" value="crea_lotto">
+              <input type="hidden" name="materiale_id" value="{{ m.id }}">
+              <div class="riga stretta">
+                <div><label>Lotto</label><input name="lotto" required style="width:120px"></div>
+                <div><label>Scadenza</label><input name="scadenza" placeholder="gg/mm/aaaa" style="width:110px"></div>
+                <div><label>Note</label><input name="note_lotto" style="width:160px"></div>
+                <div style="flex:0"><button type="submit" class="piccolo">+ Lotto</button></div>
+              </div>
+            </form>
+          </details>
+        </td>
+        <td>{{ m.categoria_nome or '—' }}</td>
+        <td>{{ m.n_lotti }}</td>
+        <td style="width:1%">
+          <form method="post" onsubmit="return confirm('Eliminare {{ m.nome }} e tutti i suoi lotti?')">
+            <input type="hidden" name="azione" value="elimina_materiale">
+            <input type="hidden" name="materiale_id" value="{{ m.id }}">
+            <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="vuoto">Nessun materiale registrato.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

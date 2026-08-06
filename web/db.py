@@ -92,6 +92,27 @@ CREATE TABLE IF NOT EXISTS fornitore (
     note TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS categoria_materiale (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS materiale (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fornitore_id INTEGER NOT NULL REFERENCES fornitore(id) ON DELETE CASCADE,
+    categoria_id INTEGER REFERENCES categoria_materiale(id) ON DELETE SET NULL,
+    nome TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS lotto_materiale (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    materiale_id INTEGER NOT NULL REFERENCES materiale(id) ON DELETE CASCADE,
+    lotto TEXT NOT NULL,
+    scadenza TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS log_operazione (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     quando TEXT NOT NULL,
@@ -496,6 +517,86 @@ def aggiorna_fornitore(fornitore_id: int, nome: str, contatti: str, note: str) -
 def elimina_fornitore(fornitore_id: int) -> None:
     with connessione() as conn:
         conn.execute("DELETE FROM fornitore WHERE id = ?", (fornitore_id,))
+
+
+# --------------------------------------------------------------- materiali
+def categorie_materiale() -> list[sqlite3.Row]:
+    with connessione() as conn:
+        return conn.execute(
+            "SELECT * FROM categoria_materiale ORDER BY nome").fetchall()
+
+
+def crea_categoria_materiale(nome: str) -> int:
+    with connessione() as conn:
+        cur = conn.execute(
+            "INSERT INTO categoria_materiale (nome) VALUES (?)", (nome.strip(),))
+        return int(cur.lastrowid)
+
+
+def elimina_categoria_materiale(categoria_id: int) -> None:
+    with connessione() as conn:
+        conn.execute("DELETE FROM categoria_materiale WHERE id = ?", (categoria_id,))
+
+
+def materiali(fornitore_id: int | None = None) -> list[sqlite3.Row]:
+    sql = """
+        SELECT m.*, f.nome AS fornitore_nome, cat.nome AS categoria_nome,
+               (SELECT COUNT(*) FROM lotto_materiale l WHERE l.materiale_id = m.id) AS n_lotti
+        FROM materiale m
+        JOIN fornitore f ON f.id = m.fornitore_id
+        LEFT JOIN categoria_materiale cat ON cat.id = m.categoria_id
+    """
+    parametri: tuple = ()
+    if fornitore_id is not None:
+        sql += " WHERE m.fornitore_id = ?"
+        parametri = (fornitore_id,)
+    sql += " ORDER BY f.nome, m.nome"
+    with connessione() as conn:
+        return conn.execute(sql, parametri).fetchall()
+
+
+def crea_materiale(fornitore_id: int, categoria_id: int | None, nome: str,
+                   note: str = "") -> int:
+    with connessione() as conn:
+        cur = conn.execute(
+            "INSERT INTO materiale (fornitore_id, categoria_id, nome, note) "
+            "VALUES (?, ?, ?, ?)", (fornitore_id, categoria_id, nome.strip(), note))
+        return int(cur.lastrowid)
+
+
+def elimina_materiale(materiale_id: int) -> None:
+    with connessione() as conn:
+        conn.execute("DELETE FROM materiale WHERE id = ?", (materiale_id,))
+
+
+def lotti_materiale(materiale_id: int | None = None) -> list[sqlite3.Row]:
+    sql = """
+        SELECT l.*, m.nome AS materiale_nome, f.nome AS fornitore_nome
+        FROM lotto_materiale l
+        JOIN materiale m ON m.id = l.materiale_id
+        JOIN fornitore f ON f.id = m.fornitore_id
+    """
+    parametri: tuple = ()
+    if materiale_id is not None:
+        sql += " WHERE l.materiale_id = ?"
+        parametri = (materiale_id,)
+    sql += " ORDER BY l.scadenza, l.lotto"
+    with connessione() as conn:
+        return conn.execute(sql, parametri).fetchall()
+
+
+def crea_lotto_materiale(materiale_id: int, lotto: str, scadenza: str = "",
+                         note: str = "") -> int:
+    with connessione() as conn:
+        cur = conn.execute(
+            "INSERT INTO lotto_materiale (materiale_id, lotto, scadenza, note) "
+            "VALUES (?, ?, ?, ?)", (materiale_id, lotto.strip(), scadenza, note))
+        return int(cur.lastrowid)
+
+
+def elimina_lotto_materiale(lotto_id: int) -> None:
+    with connessione() as conn:
+        conn.execute("DELETE FROM lotto_materiale WHERE id = ?", (lotto_id,))
 
 
 # --------------------------------------------------------------------- log
