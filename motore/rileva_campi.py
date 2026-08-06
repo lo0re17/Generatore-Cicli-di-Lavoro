@@ -39,6 +39,7 @@ class CampoProposto:
     # sostituzioni testuali extra: [(cella, testo_da_sostituire), ...]
     sostituzioni: list[tuple[str, str]] = field(default_factory=list)
     incluso: bool = True         # il wizard permette di escluderlo
+    fisso: bool = False          # valore fisso dal template, non richiesto nel form
 
 
 @dataclass
@@ -378,6 +379,7 @@ def costruisci_template(prop: Proposta, cartella_templates: str | Path,
             "default": campo.default,
             "gruppo": campo.gruppo,
             "aiuto": campo.aiuto,
+            "fisso": campo.fisso,
         })
 
     wb.save(dest / "template.xlsx")

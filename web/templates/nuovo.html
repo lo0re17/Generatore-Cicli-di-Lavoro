@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% set attiva = 'pn' %}
+{% block titolo %}Nuovo PN — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Nuovo PN da ciclo compilato</h2>
+
+{% if fase == 'scelta_file' %}
+<div class="card">
+  <p class="aiuto">Carica un ciclo di lavoro già compilato (formato 01-03-cl-RT):
+    il riconoscimento automatico propone i campi variabili e quelli fissi,
+    da rivedere prima di creare il template.</p>
+  <form method="post" action="{{ url_for('pn_nuovo') }}" enctype="multipart/form-data">
+    <input type="hidden" name="fase" value="revisione">
+    <label>Ciclo compilato (.xlsx)</label>
+    <input type="file" name="file" accept=".xlsx" required>
+    <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+      <button type="submit">Analizza</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if fase == 'revisione' %}
+<form method="post" action="{{ url_for('pn_nuovo') }}">
+  <input type="hidden" name="fase" value="crea">
+  <input type="hidden" name="percorso" value="{{ percorso }}">
+
+  <div class="card">
+    <div class="riga">
+      <div><label>PN (part number) *</label>
+        <input name="pn" value="{{ proposta.pn }}" required></div>
+      <div><label>Descrizione</label>
+        <input name="descrizione" value="{{ proposta.descrizione }}"></div>
+      <div><label>Cliente</label>
+        <select name="cliente_id">
+          <option value="">— nessuno —</option>
+          {% for c in clienti %}
+            <option value="{{ c.id }}">{{ c.nome }}</option>
+          {% endfor %}
+        </select></div>
+    </div>
+  </div>
+
+  {% if proposta.avvisi %}
+  <div class="card">
+    <h3 style="margin-top:0">Avvisi del riconoscimento</h3>
+    <ul class="aiuto" style="margin:0; padding-left:18px">
+      {% for a in proposta.avvisi %}<li>{{ a }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <div class="card" style="overflow-x:auto">
+    <h3 style="margin-top:0">Campi riconosciuti</h3>
+    <p class="aiuto" style="margin-bottom:10px">
+      <strong>Incluso</strong>: entra nel template. <strong>Fisso</strong>: valore
+      dal template, non richiesto nel form di generazione (es. Rev. che non
+      cambia per ordine). <strong>Obbligatorio</strong>: richiesto per generare.</p>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:1%">Incluso</th>
+          <th style="width:1%">Fisso</th>
+          <th style="width:1%">Obbl.</th>
+          <th>Etichetta</th>
+          <th>Tipo</th>
+          <th>Gruppo</th>
+          <th>Valore attuale</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for campo in proposta.campi %}
+        <tr>
+          <td><input type="checkbox" name="incluso_{{ loop.index0 }}" {% if campo.incluso %}checked{% endif %}></td>
+          <td><input type="checkbox" name="fisso_{{ loop.index0 }}" {% if campo.fisso %}checked{% endif %}></td>
+          <td><input type="checkbox" name="obbligatorio_{{ loop.index0 }}" {% if campo.obbligatorio %}checked{% endif %}></td>
+          <td><input name="etichetta_{{ loop.index0 }}" value="{{ campo.etichetta }}" style="min-width:200px"></td>
+          <td>{{ campo.tipo }}</td>
+          <td>{{ campo.gruppo or '—' }}</td>
+          <td>{{ campo.valore_attuale or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="barra-azioni">
+    <button type="submit">Crea template</button>
+    <a href="{{ url_for('pn_nuovo') }}" class="chiaro bottone">Annulla</a>
+  </div>
+</form>
+{% endif %}
+
+{% endblock %}

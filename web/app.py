@@ -15,20 +15,23 @@ from __future__ import annotations
 
 import functools
 import io
+import sqlite3
 import sys
 import tempfile
 import traceback
 import zipfile
+from datetime import datetime
 from pathlib import Path
 
-from flask import (Flask, flash, redirect, render_template, request,
-                    send_file, session, url_for)
+from flask import (Flask, after_this_request, flash, redirect,
+                    render_template, request, send_file, session, url_for)
 from werkzeug.security import check_password_hash
 
 BASE = Path(__file__).resolve().parent
 PROGETTO = BASE.parent
 CARTELLA_TEMPLATES = PROGETTO / "templates"
 CARTELLA_ANAGRAFICA = PROGETTO / "anagrafica"
+CARTELLA_WIZARD = BASE / "instance" / "wizard"
 
 sys.path.insert(0, str(PROGETTO))
 sys.path.insert(0, str(BASE))
@@ -37,6 +40,7 @@ from motore import generatore as G  # noqa: E402
 from motore import fasi as F  # noqa: E402
 from motore import ordine_interno as OI  # noqa: E402
 from motore import riq as RIQ  # noqa: E402
+from motore import rileva_campi as RC  # noqa: E402
 from motore.anagrafica import Anagrafica  # noqa: E402
 
 import db  # noqa: E402
@@ -627,6 +631,116 @@ def pn_elimina(pn: str):
     db.elimina_pn(pn)
     flash(f"PN '{pn}' rimosso dall'anagrafica (il template resta sul disco).")
     return redirect(url_for("pn_elenco"))
+
+
+# --------------------------------------------------------------------------- #
+# Nuovo PN — wizard di riconoscimento campi da un ciclo compilato
+# --------------------------------------------------------------------------- #
+@app.route("/pn/nuovo", methods=["GET", "POST"])
+@serve_azione("redige")
+def pn_nuovo():
+    if request.method == "GET":
+        return render_template("nuovo.html", fase="scelta_file")
+
+    fase = request.form.get("fase", "")
+    if fase == "revisione":
+        return _wizard_revisione()
+    if fase == "crea":
+        return _wizard_crea()
+    return redirect(url_for("pn_nuovo"))
+
+
+def _wizard_revisione():
+    caricato = request.files.get("file")
+    if caricato is None or not caricato.filename:
+        flash("Scegli un ciclo compilato da analizzare.")
+        return redirect(url_for("pn_nuovo"))
+
+    CARTELLA_WIZARD.mkdir(parents=True, exist_ok=True)
+    percorso = CARTELLA_WIZARD / ("sorgente" + Path(caricato.filename).suffix)
+    caricato.save(percorso)
+
+    try:
+        proposta = RC.analizza(percorso)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Impossibile analizzare il file: {e}")
+        return redirect(url_for("pn_nuovo"))
+
+    if not proposta.pn:
+        flash("PN non riconosciuto automaticamente: inseriscilo qui sotto.")
+    return render_template("nuovo.html", fase="revisione",
+                           percorso=str(percorso), proposta=proposta,
+                           clienti=db.clienti())
+
+
+def _wizard_crea():
+    percorso = Path(request.form.get("percorso", ""))
+    if not percorso.is_file():
+        flash("File analizzato non più disponibile: ricaricalo.")
+        return redirect(url_for("pn_nuovo"))
+
+    proposta = RC.analizza(percorso)
+    proposta.pn = request.form.get("pn", "").strip() or proposta.pn
+    proposta.descrizione = request.form.get("descrizione", proposta.descrizione)
+
+    for i, campo in enumerate(proposta.campi):
+        campo.incluso = bool(request.form.get(f"incluso_{i}"))
+        campo.fisso = bool(request.form.get(f"fisso_{i}"))
+        etichetta = request.form.get(f"etichetta_{i}", "").strip()
+        if etichetta:
+            campo.etichetta = etichetta
+        campo.obbligatorio = bool(request.form.get(f"obbligatorio_{i}"))
+
+    def _riesponi(messaggio: str):
+        flash(messaggio)
+        return render_template("nuovo.html", fase="revisione",
+                               percorso=str(percorso), proposta=proposta,
+                               clienti=db.clienti())
+
+    if not proposta.pn:
+        return _riesponi("Il PN è obbligatorio.")
+    if (CARTELLA_TEMPLATES / proposta.pn / "template.xlsx").is_file():
+        return _riesponi(f"Esiste già un template per il PN '{proposta.pn}'.")
+
+    try:
+        RC.costruisci_template(proposta, CARTELLA_TEMPLATES)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        return _riesponi(f"Errore nella creazione del template: {e}")
+
+    cliente_scelto = request.form.get("cliente_id", "")
+    db.salva_pn(proposta.pn,
+                int(cliente_scelto) if cliente_scelto.isdigit() else None,
+                proposta.descrizione)
+
+    flash(f"Template creato per PN '{proposta.pn}'.")
+    return redirect(url_for("pn_elenco"))
+
+
+# --------------------------------------------------------------------------- #
+# Backup database
+# --------------------------------------------------------------------------- #
+@app.route("/backup")
+@serve_azione("redige")
+def backup_database():
+    nome = f"backup_generatore_cicli_{datetime.now():%Y%m%d_%H%M%S}.db"
+    percorso_tmp = BASE / "instance" / f"_tmp_{nome}"
+    percorso_tmp.parent.mkdir(parents=True, exist_ok=True)
+
+    origine = sqlite3.connect(db.DB_PATH)
+    destinazione = sqlite3.connect(percorso_tmp)
+    with destinazione:
+        origine.backup(destinazione)
+    origine.close()
+    destinazione.close()
+
+    @after_this_request
+    def pulisci(response):
+        percorso_tmp.unlink(missing_ok=True)
+        return response
+
+    return send_file(percorso_tmp, as_attachment=True, download_name=nome)
 
 
 # --------------------------------------------------------------------------- #
