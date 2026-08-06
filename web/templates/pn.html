@@ -66,8 +66,9 @@
 
 {% if righe %}
 {% if puo_redigere %}
-<form method="post" action="{{ url_for('pn_assegna') }}">
+<form id="assegna_form" method="post" action="{{ url_for('pn_assegna') }}">
   <input type="hidden" name="filtro" value="{{ filtro_cliente }}">
+</form>
 {% endif %}
 
 <div class="card" style="overflow-x:auto">
@@ -87,7 +88,7 @@
       {% for r in righe %}
       <tr>
         {% if puo_redigere %}
-        <td><input type="checkbox" name="pn_scelti" value="{{ r.pn }}"></td>
+        <td><input type="checkbox" name="pn_scelti" value="{{ r.pn }}" form="assegna_form"></td>
         {% endif %}
         <td>
           {% if puo_redigere %}
@@ -153,7 +154,7 @@
     <div class="riga" style="align-items:flex-end">
       <div>
         <label>Assegna i PN selezionati a:</label>
-        <select name="cliente_id">
+        <select name="cliente_id" form="assegna_form">
           <option value="">— rimuovi assegnazione —</option>
           {% for c in clienti %}
             <option value="{{ c.id }}">{{ c.nome }}</option>
@@ -161,11 +162,10 @@
         </select>
       </div>
       <div style="flex:0">
-        <button type="submit">Assegna</button>
+        <button type="submit" form="assegna_form">Assegna</button>
       </div>
     </div>
   </div>
-</form>
 {% endif %}
 
 {% else %}

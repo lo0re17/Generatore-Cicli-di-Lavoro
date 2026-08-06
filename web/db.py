@@ -126,12 +126,18 @@ CONTROLLI_INIZIALI = [
 
 def _migra_ruolo_admin(conn: sqlite3.Connection) -> None:
     """Su DB creati prima del ruolo 'admin' il CHECK della tabella utente
-    non lo ammette: ricostruisce la tabella con lo schema aggiornato."""
+    non lo ammette: ricostruisce la tabella con lo schema aggiornato.
+
+    ``PRAGMA legacy_alter_table`` evita che SQLite riscriva in automatico
+    il riferimento FK di log_generazione facendolo puntare a
+    'utente_vecchia' (che poi viene droppata, lasciando un riferimento
+    pendente)."""
     riga = conn.execute(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='utente'"
     ).fetchone()
     if riga and "'admin'" in (riga["sql"] or ""):
         return
+    conn.execute("PRAGMA legacy_alter_table = ON")
     conn.executescript("""
         ALTER TABLE utente RENAME TO utente_vecchia;
         CREATE TABLE utente (
@@ -145,12 +151,42 @@ def _migra_ruolo_admin(conn: sqlite3.Connection) -> None:
         INSERT INTO utente SELECT * FROM utente_vecchia;
         DROP TABLE utente_vecchia;
     """)
+    conn.execute("PRAGMA legacy_alter_table = OFF")
+
+
+def _ripara_fk_log_generazione(conn: sqlite3.Connection) -> None:
+    """Ripara log_generazione se, per un bug di una migrazione precedente,
+    il suo FK e' rimasto puntato alla tabella 'utente_vecchia' (poi
+    droppata), causando 'no such table: main.utente_vecchia' a ogni
+    generazione."""
+    riga = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='log_generazione'"
+    ).fetchone()
+    if not riga or "utente_vecchia" not in (riga["sql"] or ""):
+        return
+    conn.executescript("""
+        ALTER TABLE log_generazione RENAME TO log_generazione_vecchia;
+        CREATE TABLE log_generazione (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            quando TEXT NOT NULL,
+            utente_id INTEGER REFERENCES utente(id) ON DELETE SET NULL,
+            username TEXT NOT NULL DEFAULT '',
+            pn TEXT NOT NULL DEFAULT '',
+            tipi_documento TEXT NOT NULL DEFAULT '',
+            ordine_interno TEXT NOT NULL DEFAULT '',
+            quantita INTEGER NOT NULL DEFAULT 0,
+            file_generati TEXT NOT NULL DEFAULT ''
+        );
+        INSERT INTO log_generazione SELECT * FROM log_generazione_vecchia;
+        DROP TABLE log_generazione_vecchia;
+    """)
 
 
 def inizializza() -> None:
     with connessione() as conn:
         conn.executescript(SCHEMA)
         _migra_ruolo_admin(conn)
+        _ripara_fk_log_generazione(conn)
 
         gia_presenti = conn.execute(
             "SELECT COUNT(*) AS n FROM catalogo_controlli").fetchone()["n"]
