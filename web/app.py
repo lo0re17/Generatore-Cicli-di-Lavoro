@@ -1281,10 +1281,21 @@ def _mostra_anteprima(percorso: Path, intestazioni: list[str],
 
 # --------------------------------------------------------------------------- #
 # Import Ordini Cliente (OC) dal gestionale
+#
+# IN PAUSA: il formato del file OC di esempio fornito non e' quello giusto
+# per l'export reale del gestionale; il parser va rifatto sul file corretto.
+# Route disattivate (tolte anche dalla nav) finche' non viene fornito un
+# file di esempio valido.
 # --------------------------------------------------------------------------- #
 @app.route("/oc/importa", methods=["GET", "POST"])
 @serve_azione("redige")
 def oc_importa():
+    flash("Import OC in pausa: il formato del file di esempio non era quello giusto. "
+          "Da rifare su un export corretto del gestionale.")
+    return redirect(url_for("dashboard"))
+
+
+def _oc_importa_disattivato():
     if request.method == "GET":
         return render_template("oc_importa.html", fase="scelta_file")
 
@@ -1318,6 +1329,11 @@ def oc_importa():
 @app.route("/oc/usa-riga", methods=["POST"])
 @serve_azione("redige")
 def oc_usa_riga():
+    flash("Import OC in pausa.")
+    return redirect(url_for("dashboard"))
+
+
+def _oc_usa_riga_disattivato():
     """Prepara la generazione a partire da una riga OC: assegna/crea il
     cliente e, se la Commessa corrisponde a un PN con template esistente,
     apre direttamente il form di generazione per quel PN."""

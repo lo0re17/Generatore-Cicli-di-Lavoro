@@ -68,7 +68,6 @@
     <a href="{{ url_for('clienti') }}" {% if attiva == 'clienti' %}class="attivo"{% endif %}>Clienti</a>
     {% if puo_redigere %}
       <a href="{{ url_for('importa_anagrafica') }}" {% if attiva == 'importa' %}class="attivo"{% endif %}>Importa</a>
-      <a href="{{ url_for('oc_importa') }}" {% if attiva == 'oc_importa' %}class="attivo"{% endif %}>Importa OC</a>
     {% endif %}
     <a href="{{ url_for('storico') }}" {% if attiva == 'storico' %}class="attivo"{% endif %}>Storico</a>
     {% if puo_amministrare %}
