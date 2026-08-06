@@ -42,6 +42,7 @@ from motore import ordine_interno as OI  # noqa: E402
 from motore import riq as RIQ  # noqa: E402
 from motore import rileva_campi as RC  # noqa: E402
 from motore import rileva_riq as RCR  # noqa: E402
+from motore import importa_oc as IOC  # noqa: E402
 from motore.anagrafica import Anagrafica, Operatore  # noqa: E402
 
 import db  # noqa: E402
@@ -1224,6 +1225,69 @@ def _mostra_anteprima(percorso: Path, intestazioni: list[str],
         separa_revisione=separa_rev, anteprima=anteprima,
         tipi_articolo=importa.TIPI_ARTICOLO, clienti=db.clienti(),
         totale_righe=len(righe))
+
+
+# --------------------------------------------------------------------------- #
+# Import Ordini Cliente (OC) dal gestionale
+# --------------------------------------------------------------------------- #
+@app.route("/oc/importa", methods=["GET", "POST"])
+@serve_azione("redige")
+def oc_importa():
+    if request.method == "GET":
+        return render_template("oc_importa.html", fase="scelta_file")
+
+    caricato = request.files.get("file")
+    if caricato is None or not caricato.filename:
+        flash("Scegli il file OC esportato dal gestionale (.xml).")
+        return redirect(url_for("oc_importa"))
+
+    percorso = _percorso_temporaneo("ultimo_oc.xml")
+    caricato.save(percorso)
+
+    try:
+        righe = IOC.leggi_oc(percorso)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        flash(f"Impossibile leggere il file OC: {e}")
+        return redirect(url_for("oc_importa"))
+
+    if not righe:
+        flash("Nessuna riga OC trovata nel file.")
+        return redirect(url_for("oc_importa"))
+
+    pn_esistenti = {r["pn"] for r in db.pn_tutti()}
+    templates = template_disponibili()
+    for r in righe:
+        r.pn_trovato = r.commessa in pn_esistenti and r.commessa in templates
+
+    return render_template("oc_importa.html", fase="elenco", righe=righe)
+
+
+@app.route("/oc/usa-riga", methods=["POST"])
+@serve_azione("redige")
+def oc_usa_riga():
+    """Prepara la generazione a partire da una riga OC: assegna/crea il
+    cliente e, se la Commessa corrisponde a un PN con template esistente,
+    apre direttamente il form di generazione per quel PN."""
+    commessa = request.form.get("commessa", "").strip()
+    denominazione = request.form.get("denominazione", "").strip()
+    rif_doc_numero = request.form.get("rif_doc_numero", "").strip()
+
+    cliente_id = db.trova_o_crea_cliente(denominazione) if denominazione else None
+
+    templates = template_disponibili()
+    if commessa and commessa in templates:
+        if cliente_id is not None:
+            db.assegna_cliente_a_pn(commessa, cliente_id)
+        flash(f"Riga OC caricata per il PN '{commessa}'"
+              + (f" (rif. cliente {rif_doc_numero})" if rif_doc_numero else "") + ".")
+        registra_azione("importa_oc", commessa)
+        return redirect(url_for("dashboard", pn=commessa))
+
+    flash(f"La Commessa '{commessa}' non corrisponde a nessun template esistente: "
+          f"crea prima il PN (Anagrafica PN → Nuovo PN da ciclo compilato), "
+          f"poi assegna il cliente '{denominazione}'.")
+    return redirect(url_for("oc_importa"))
 
 
 # --------------------------------------------------------------------------- #

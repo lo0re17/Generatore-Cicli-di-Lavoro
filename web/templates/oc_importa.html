@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set attiva = 'oc_importa' %}
+{% block titolo %}Import OC — Generatore Cicli{% endblock %}
+{% block contenuto %}
+
+<h2>Genera cicli da Ordine Cliente (OC)</h2>
+
+{% if fase == 'scelta_file' %}
+<div class="card">
+  <p class="aiuto">Carica il file esportato dal gestionale ("Stampa elenco su
+    Excel" degli OC, formato .xml). Le righe vengono mostrate qui sotto: scegli
+    quella giusta per assegnare/creare il cliente e aprire il form di
+    generazione sul PN corrispondente (colonna "Commessa").</p>
+  <form method="post" action="{{ url_for('oc_importa') }}" enctype="multipart/form-data">
+    <label>File OC (.xml)</label>
+    <input type="file" name="file" accept=".xml" required>
+    <div class="barra-azioni" style="margin-top:10px; margin-bottom:0">
+      <button type="submit">Carica</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if fase == 'elenco' %}
+<div class="card" style="overflow-x:auto">
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th><th>Numero</th><th>Data</th><th>Cliente</th><th>Note</th>
+        <th>Rif. cliente</th><th>Data trasporto</th><th>Commessa</th><th>Totale</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in righe %}
+      <tr>
+        <td>{{ r.tipo }}{{ r.serie }}-{{ r.numero }}</td>
+        <td>{{ r.numero }}</td>
+        <td>{{ r.data_doc }}</td>
+        <td>{{ r.denominazione or r.cliente }}</td>
+        <td>{{ r.note }}</td>
+        <td>{{ r.rif_doc_numero }}</td>
+        <td>{{ r.data_trasporto or '—' }}</td>
+        <td>
+          {{ r.commessa }}
+          {% if r.pn_trovato %}<span class="badge ok">PN ok</span>
+          {% else %}<span class="badge attesa">PN da creare</span>{% endif %}
+        </td>
+        <td>{{ r.totale }}</td>
+        <td style="width:1%">
+          <form method="post" action="{{ url_for('oc_usa_riga') }}">
+            <input type="hidden" name="commessa" value="{{ r.commessa }}">
+            <input type="hidden" name="denominazione" value="{{ r.denominazione or r.cliente }}">
+            <input type="hidden" name="rif_doc_numero" value="{{ r.rif_doc_numero }}">
+            <button type="submit" class="piccolo">Usa</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="aiuto">"PN da creare": non esiste ancora un template per quella
+  Commessa — crealo prima da Anagrafica PN → Nuovo PN da ciclo compilato,
+  usando lo stesso codice come PN.</p>
+<a href="{{ url_for('oc_importa') }}" class="chiaro bottone">Carica un altro file</a>
+{% endif %}
+
+{% endblock %}
