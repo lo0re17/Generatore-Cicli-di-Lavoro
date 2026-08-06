@@ -136,8 +136,11 @@
           {% endif %}
         </td>
         {% if puo_redigere %}
-        <td style="width:1%">
-          <form method="post" action="{{ url_for('pn_elimina', pn=r.pn) }}"
+        <td style="width:1%; white-space:nowrap">
+          {% if r.pn in con_template %}
+          <a href="{{ url_for('pn_modifica_template', pn=r.pn) }}" class="chiaro piccolo bottone">Modifica template</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('pn_elimina', pn=r.pn) }}" style="display:inline"
                 onsubmit="return confirm('Rimuovere {{ r.pn }} dall\\'anagrafica?')">
             <button type="submit" class="chiaro piccolo pericolo">Elimina</button>
           </form>

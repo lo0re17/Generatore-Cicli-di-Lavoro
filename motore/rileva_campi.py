@@ -418,3 +418,149 @@ def costruisci_template(prop: Proposta, cartella_templates: str | Path,
     (dest / "config.json").write_text(
         json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
     return dest
+
+
+# --------------------------------------------------------------------------- #
+# Modifica di un template esistente (celle da correggere, campi da aggiungere)
+# --------------------------------------------------------------------------- #
+@dataclass
+class CampoModifica:
+    token: str
+    etichetta: str
+    tipo: str
+    cella_attuale: str = ""
+    gruppo: str = ""
+    aiuto: str = ""
+    obbligatorio: bool = False
+    default: str = ""
+    fisso: bool = False
+
+
+def _testo_cella_piatto(valore) -> str:
+    from openpyxl.cell.rich_text import CellRichText, TextBlock
+    if isinstance(valore, CellRichText):
+        return "".join(p.text if isinstance(p, TextBlock) else str(p) for p in valore)
+    return "" if valore is None else str(valore)
+
+
+def _trova_celle_con_token(ws, token: str) -> list[str]:
+    trovate = []
+    for riga in ws.iter_rows():
+        for cella in riga:
+            if cella.value is not None and token in _testo_cella_piatto(cella.value):
+                trovate.append(cella.coordinate)
+    return trovate
+
+
+def _rimuovi_token_da_cella(cella, token: str) -> None:
+    """Toglie il token da una cella, lasciando l'eventuale testo residuo
+    (es. sostituzioni "Lotto: {{TOKEN}}" -> "Lotto:")."""
+    from openpyxl.cell.rich_text import CellRichText, TextBlock
+
+    v = cella.value
+    if isinstance(v, CellRichText):
+        for i, parte in enumerate(v):
+            contenuto = parte.text if isinstance(parte, TextBlock) else str(parte)
+            if token in contenuto:
+                nuovo = contenuto.replace(token, "").strip()
+                if isinstance(parte, TextBlock):
+                    parte.text = nuovo
+                else:
+                    v[i] = nuovo
+        cella.value = v
+        return
+    if v == token:
+        cella.value = None
+    elif isinstance(v, str) and token in v:
+        nuovo = v.replace(token, "").strip()
+        cella.value = nuovo if nuovo else None
+
+
+def carica_per_modifica(cartella_pn: str | Path) -> tuple[dict, list[CampoModifica]]:
+    """Legge config.json + template.xlsx di un PN gia' creato e ricostruisce,
+    per ogni campo, la cella in cui si trova oggi il suo token (cercandolo
+    nel foglio, dato che il config non la tiene salvata a parte)."""
+    cartella_pn = Path(cartella_pn)
+    dati = json.loads((cartella_pn / "config.json").read_text(encoding="utf-8"))
+    wb = openpyxl.load_workbook(cartella_pn / dati["template"], rich_text=True)
+    ws = wb.active
+
+    campi: list[CampoModifica] = []
+    for c in dati["campi"]:
+        celle = _trova_celle_con_token(ws, c["token"])
+        campi.append(CampoModifica(
+            token=c["token"], etichetta=c["etichetta"], tipo=c["tipo"],
+            cella_attuale=celle[0] if celle else "",
+            gruppo=c.get("gruppo", ""), aiuto=c.get("aiuto", ""),
+            obbligatorio=c.get("obbligatorio", False),
+            default=c.get("default", ""), fisso=c.get("fisso", False),
+        ))
+    return dati, campi
+
+
+def applica_modifiche(cartella_pn: str | Path, dati_config: dict,
+                      righe: list[dict], nuovi: list[dict]) -> None:
+    """Applica le modifiche al template esistente.
+
+    ``righe``: un dict per ciascun campo gia' esistente (stesso ordine di
+    ``dati_config['campi']``) con incluso/etichetta/tipo/gruppo/
+    obbligatorio/fisso/default/cella_attuale/cella.
+    ``nuovi``: nuovi campi da aggiungere, con etichetta/cella/tipo/obbligatorio.
+    """
+    cartella_pn = Path(cartella_pn)
+    wb = openpyxl.load_workbook(cartella_pn / dati_config["template"], rich_text=True)
+    ws = wb.active
+    merges = _mappa_merge(ws)
+
+    from openpyxl.utils.cell import coordinate_to_tuple
+
+    campi_finali = []
+    for campo_cfg, riga in zip(dati_config["campi"], righe):
+        token = campo_cfg["token"]
+        if not riga.get("incluso", True):
+            for coord in _trova_celle_con_token(ws, token):
+                _rimuovi_token_da_cella(ws[coord], token)
+            continue
+
+        cella_nuova = (riga.get("cella") or "").strip().upper()
+        cella_attuale = (riga.get("cella_attuale") or "").strip().upper()
+        if cella_nuova and cella_nuova != cella_attuale:
+            if cella_attuale:
+                _rimuovi_token_da_cella(ws[cella_attuale], token)
+            r, c = coordinate_to_tuple(cella_nuova)
+            ar, ac = _anchor(ws, r, c, merges)
+            ws.cell(row=ar, column=ac).value = token
+
+        campi_finali.append({
+            "token": token,
+            "etichetta": riga.get("etichetta") or campo_cfg["etichetta"],
+            "tipo": riga.get("tipo") or campo_cfg["tipo"],
+            "obbligatorio": bool(riga.get("obbligatorio")),
+            "default": riga.get("default", campo_cfg.get("default", "")),
+            "gruppo": riga.get("gruppo", campo_cfg.get("gruppo", "")),
+            "aiuto": campo_cfg.get("aiuto", ""),
+            "fisso": bool(riga.get("fisso")),
+        })
+
+    for nuovo in nuovi:
+        etich = (nuovo.get("etichetta") or "").strip()
+        cella = (nuovo.get("cella") or "").strip().upper()
+        if not etich or not cella:
+            continue
+        token = "{{" + _slug(etich) + "}}"
+        r, c = coordinate_to_tuple(cella)
+        ar, ac = _anchor(ws, r, c, merges)
+        ws.cell(row=ar, column=ac).value = token
+        campi_finali.append({
+            "token": token, "etichetta": etich, "tipo": nuovo.get("tipo") or "testo",
+            "obbligatorio": nuovo.get("obbligatorio") == "si",
+            "default": "", "gruppo": "", "aiuto": "", "fisso": False,
+        })
+
+    wb.save(cartella_pn / dati_config["template"])
+    from motore.generatore import ripara_rich_text_salvato
+    ripara_rich_text_salvato(cartella_pn / dati_config["template"])
+
+    dati_config["campi"] = campi_finali
+    (cartella_pn / "config.json").write_text(
+        json.dumps(dati_config, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -664,6 +664,58 @@ def pn_elimina(pn: str):
     return redirect(url_for("pn_elenco"))
 
 
+@app.route("/pn/<path:pn>/modifica-template", methods=["GET", "POST"])
+@serve_azione("redige")
+def pn_modifica_template(pn: str):
+    templates = template_disponibili()
+    if pn not in templates:
+        flash(f"Nessun template ODL trovato per il PN '{pn}'.")
+        return redirect(url_for("pn_elenco"))
+    cartella_pn = templates[pn].parent
+
+    dati_config, campi = RC.carica_per_modifica(cartella_pn)
+
+    if request.method == "GET":
+        return render_template("modifica_template.html", pn=pn,
+                               dati_config=dati_config, campi=campi)
+
+    righe = []
+    for i, campo_cfg in enumerate(dati_config["campi"]):
+        righe.append({
+            "incluso": bool(request.form.get(f"incluso_{i}")),
+            "etichetta": request.form.get(f"etichetta_{i}", "").strip(),
+            "tipo": request.form.get(f"tipo_{i}", campo_cfg["tipo"]),
+            "gruppo": request.form.get(f"gruppo_{i}", campo_cfg.get("gruppo", "")).strip(),
+            "obbligatorio": bool(request.form.get(f"obbligatorio_{i}")),
+            "fisso": bool(request.form.get(f"fisso_{i}")),
+            "default": request.form.get(f"default_{i}", campo_cfg.get("default", "")),
+            "cella_attuale": campi[i].cella_attuale,
+            "cella": request.form.get(f"cella_{i}", campi[i].cella_attuale).strip().upper(),
+        })
+
+    nuovi = [
+        {"etichetta": etich, "cella": cella, "tipo": tipo, "obbligatorio": obbl}
+        for etich, cella, tipo, obbl in zip(
+            request.form.getlist("extra_etichetta"),
+            request.form.getlist("extra_cella"),
+            request.form.getlist("extra_tipo"),
+            request.form.getlist("extra_obbligatorio"))
+    ]
+
+    try:
+        RC.applica_modifiche(cartella_pn, dati_config, righe, nuovi)
+    except Exception as e:  # noqa: BLE001
+        traceback.print_exc()
+        db.registra_errore(session.get("username", ""), request.path,
+                           str(e), traceback.format_exc())
+        flash(f"Errore nel salvataggio del template: {e}")
+        return redirect(url_for("pn_modifica_template", pn=pn))
+
+    registra_azione("modifica_template_odl", pn)
+    flash(f"Template di '{pn}' aggiornato.")
+    return redirect(url_for("pn_elenco"))
+
+
 # --------------------------------------------------------------------------- #
 # Nuovo PN — wizard di riconoscimento campi da un ciclo compilato
 # --------------------------------------------------------------------------- #
