@@ -396,6 +396,37 @@ def storico(limite: int = 100) -> list[sqlite3.Row]:
             (limite,)).fetchall()
 
 
+def storico_filtrato(cliente_id: int | None = None, mese_anno: str = "",
+                     ordine_interno: str = "", pn: str = "",
+                     limite: int = 300) -> list[sqlite3.Row]:
+    """Storico generazioni con filtri opzionali: cliente (via anagrafica_pn),
+    mese/anno (formato 'AAAA-MM'), Ordine Interno (contiene) e PN (contiene)."""
+    sql = """
+        SELECT lg.*, c.nome AS cliente_nome
+        FROM log_generazione lg
+        LEFT JOIN anagrafica_pn a ON a.pn = lg.pn
+        LEFT JOIN cliente c ON c.id = a.cliente_id
+        WHERE 1 = 1
+    """
+    parametri: list = []
+    if cliente_id is not None:
+        sql += " AND a.cliente_id = ?"
+        parametri.append(cliente_id)
+    if mese_anno:
+        sql += " AND substr(lg.quando, 1, 7) = ?"
+        parametri.append(mese_anno)
+    if ordine_interno:
+        sql += " AND lg.ordine_interno LIKE ?"
+        parametri.append(f"%{ordine_interno}%")
+    if pn:
+        sql += " AND lg.pn LIKE ?"
+        parametri.append(f"%{pn}%")
+    sql += " ORDER BY lg.id DESC LIMIT ?"
+    parametri.append(limite)
+    with connessione() as conn:
+        return conn.execute(sql, parametri).fetchall()
+
+
 # ---------------------------------------------------------- progressivo RIQ
 def prossimo_progressivo_riq(anno: str, quanti: int = 1) -> list[int]:
     """Riserva ``quanti`` numeri progressivi RIQ per l'anno dato.

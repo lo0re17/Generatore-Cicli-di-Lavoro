@@ -1161,7 +1161,16 @@ def _mostra_anteprima(percorso: Path, intestazioni: list[str],
 @app.route("/storico")
 @login_richiesto
 def storico():
-    return render_template("storico.html", righe=db.storico())
+    cliente = request.args.get("cliente", "")
+    mese_anno = request.args.get("mese_anno", "")
+    ordine_interno = request.args.get("ordine_interno", "")
+    pn = request.args.get("pn", "")
+    righe = db.storico_filtrato(
+        cliente_id=int(cliente) if cliente.isdigit() else None,
+        mese_anno=mese_anno, ordine_interno=ordine_interno, pn=pn)
+    return render_template("storico.html", righe=righe, clienti=db.clienti(),
+                           filtro_cliente=cliente, filtro_mese_anno=mese_anno,
+                           filtro_oi=ordine_interno, filtro_pn=pn)
 
 
 if __name__ == "__main__":

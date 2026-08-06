@@ -5,6 +5,40 @@
 
 <h2>Storico generazioni</h2>
 
+<div class="card">
+  <form method="get" action="{{ url_for('storico') }}">
+    <div class="riga" style="align-items:flex-end">
+      <div>
+        <label>Cliente</label>
+        <select name="cliente">
+          <option value="">Tutti</option>
+          {% for c in clienti %}
+            <option value="{{ c.id }}" {% if filtro_cliente == c.id|string %}selected{% endif %}>{{ c.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Mese/anno</label>
+        <input type="month" name="mese_anno" value="{{ filtro_mese_anno }}">
+      </div>
+      <div>
+        <label>Ordine Interno</label>
+        <input name="ordine_interno" value="{{ filtro_oi }}" placeholder="es. 6935">
+      </div>
+      <div>
+        <label>PN</label>
+        <input name="pn" value="{{ filtro_pn }}">
+      </div>
+      <div style="flex:0">
+        <button type="submit">Filtra</button>
+      </div>
+      <div style="flex:0">
+        <a href="{{ url_for('storico') }}" class="chiaro bottone">Azzera</a>
+      </div>
+    </div>
+  </form>
+</div>
+
 {% if righe %}
 <div class="card" style="overflow-x:auto">
   <table>
@@ -13,6 +47,7 @@
         <th>Data/ora</th>
         <th>Utente</th>
         <th>PN</th>
+        <th>Cliente</th>
         <th>Tipo</th>
         <th>Ordine Interno</th>
         <th>Qty</th>
@@ -25,6 +60,7 @@
         <td style="white-space:nowrap">{{ r.quando[:16].replace('T', ' ') }}</td>
         <td>{{ r.username }}</td>
         <td>{{ r.pn }}</td>
+        <td>{{ r.cliente_nome or '—' }}</td>
         <td>
           {% if 'riq' in r.tipi_documento %}
             <span class="badge ok">ODL + RIQ</span>
